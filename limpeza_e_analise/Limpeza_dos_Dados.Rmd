@@ -1,0 +1,79 @@
+---
+title: "Limpeza_dos_Dados"
+---
+```{r}
+getwd()
+```
+Requisição do arquivo com os dados
+```{r}
+dados = read.csv2("C:/FACULDADE/7_SEMESTRE/PI_DATA_SCIENCE/files/alunos_detalhes.csv", sep = ';',na.strings = "", stringsAsFactors = T)
+head(dados)
+```
+mudança da nomenclatura das colunas
+```{r}
+colnames(dados) = c("ID", "Nome", "Email", "Tipo", "DataDeNascimento", "Curso", "Turma", "Salario", "Trabalha", "Cidade", "Estado", "UsaAlcool", "Fuma", "UsaDrogas", "ProblemasMentais")
+head(dados)
+```
+verificação de valores ausentes
+```{r}
+colSums(is.na(dados))
+```
+correção dos dados "nome_usuario"
+```{r}
+# Excluir os registros com nomes nulos
+dados = dados[!is.na(dados$Nome), ]
+colSums(is.na(dados))
+
+# Filtrar nomes que contem Sr., Sra., Dra. ou Dr.
+nomes_titulo = dados[grepl("Sr\\.|Sra\\.|Dra\\.|Dr\\.", as.character(dados$Nome)), ]
+
+# Visualizar resultado
+head(nomes_titulo)
+
+# Converte coluna para character
+nomes = as.character(dados$Nome)
+
+# Conta quantidade de titulos
+qtd_sr  = sum(grepl("Sr\\.", nomes))
+qtd_sra = sum(grepl("Sra\\.", nomes))
+qtd_dra = sum(grepl("Dra\\.", nomes))
+qtd_dr  = sum(grepl("Dr\\.", nomes))
+
+# Mostra o resultado
+contagem = data.frame(
+  titulo = c("Sr.", "Sra.", "Dra.", "Dr."),
+  quantidade = c(qtd_sr, qtd_sra, qtd_dra, qtd_dr)
+)
+
+print(contagem)
+
+# Converte para character
+dados$nome = as.character(dados$Nome)
+
+# Remover os titulos
+dados$nome_limpo = gsub("\\b(Sr\\.|Sra\\.|Dra\\.|Dr\\.)\\s*", "", dados$Nome)
+
+# Visualiza resultado
+head(dados[, c("nome", "nome_limpo")])
+```
+Atualização das Datas de Nascimento
+```{r}
+# Converte para formato Date
+dados$DataDeNascimento <- as.Date(dados$DataDeNascimento)
+
+# Calcula a idade de quem tem DataDeNascimento preenchida
+idades <- as.numeric(difftime(Sys.Date(), dados$DataDeNascimento, units = "days")) / 365
+
+# Filtra apenas as idades validas para calculo da mediana
+mediana_idade <- median(idades, na.rm = TRUE)
+
+# Converte a mediana de idade para dias e subtrai da data atual
+data_estimativa <- Sys.Date() - (mediana_idade * 365)
+data_estimativa
+
+# Preenche os campos NA de DataDeNascimento com essa estimativa
+dados$DataDeNascimento[is.na(dados$DataDeNascimento)] <- data_estimativa
+
+colSums(is.na(dados))
+```
+
