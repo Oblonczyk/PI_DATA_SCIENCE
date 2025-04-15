@@ -1,0 +1,15 @@
+FROM python:3.13
+
+# Cria diretório de trabalho no container
+WORKDIR /app
+
+# Copia os arquivos do diretório atual para o container
+COPY . .
+
+RUN pip install flask
+EXPOSE 3000
+# (Opcional) Instala dependências se houver requirements.txt
+# RUN pip install -r requirements.txt
+
+CMD ["python", "teste.py"]
+
