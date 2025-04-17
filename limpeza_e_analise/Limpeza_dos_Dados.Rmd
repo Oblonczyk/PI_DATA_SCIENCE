@@ -31,7 +31,7 @@ nomes_titulo = dados[grepl("Sr\\.|Sra\\.|Dra\\.|Dr\\.", as.character(dados$Nome)
 head(nomes_titulo)
 
 # Converte coluna para character
-nomes = as.character(dados$Nome)
+dados$Nome = as.character(dados$Nome)
 
 # Conta quantidade de titulos
 qtd_sr  = sum(grepl("Sr\\.", nomes))
@@ -48,13 +48,13 @@ contagem = data.frame(
 print(contagem)
 
 # Converte para character
-dados$nome = as.character(dados$Nome)
+dados$Nome = as.character(dados$Nome)
 
 # Remover os titulos
-dados$nome_limpo = gsub("\\b(Sr\\.|Sra\\.|Dra\\.|Dr\\.)\\s*", "", dados$Nome)
+dados$Nome = gsub("\\b(Sr\\.|Sra\\.|Dra\\.|Dr\\.)\\s*", "", dados$Nome)
 
 # Visualiza resultado
-head(dados[, c("nome", "nome_limpo")])
+head(dados[, c("Nome")])
 ```
 Atualização das Datas de Nascimento
 ```{r}
@@ -76,4 +76,124 @@ dados$DataDeNascimento[is.na(dados$DataDeNascimento)] <- data_estimativa
 
 colSums(is.na(dados))
 ```
+Atualização dos cursos
+```{r}
+dados$Curso <- as.character(dados$Curso)
+
+counts = table(dados$Curso)
+counts
+
+unique(dados$Curso)
+levels(dados$Curso)
+summary(dados$Curso)
+
+dados$Curso[dados$Curso == "Asperiores Saúde"] = "Medicina"
+dados$Curso[dados$Curso == "Molestias Administração"] = "Administração"
+dados$Curso[dados$Curso == "Occaecati Administração"] = "Direito"
+dados$Curso[dados$Curso == "Quod Administração"] = "Psicologia"
+dados$Curso[dados$Curso == "Enim Tecnologia"] = "Engenharia da Computação"
+dados$Curso[dados$Curso == "Nam Tecnologia"] = "Contabilidade"
+dados$Curso[dados$Curso == "Nemo Engenharia"] = "Engenharia Civil"
+dados$Curso[dados$Curso == "Nihil Tecnologia"] = "Ciências da Computação"
+dados$Curso[dados$Curso == "Praesentium Tecnologia"] = "Biomedicina"
+
+insercoes = c("Medicina", "Administração", "Direito", "Psicologia", 
+               "Engenharia da Computação", "Contabilidade", "Engenharia Civil", 
+               "Ciências da Computação", "Biomedicina")
+
+i = 1
+
+while (sum(is.na(dados$Curso)) > 0) {
+  
+  posicao <- which(is.na(dados$Curso))[1]
+  dados$Curso[posicao] = insercoes[i]
+  
+  i = i + 1
+  if (i > length(insercoes)) {
+    i = 1
+  }
+}
+
+colSums(is.na(dados))
+```
+Atualização da coluna Turmas
+```{r}
+dados$Turma <- as.character(dados$Turma)
+
+counts = table(dados$Turma)
+counts
+
+unique(dados$Turma)
+
+# Define os valores inválidos
+valores_invalidos <- c("!!!INVALID_DATA!!!", "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX")
+
+# Marca quais são inválidos e NA
+linhas_invalidas <- which(dados$Turma %in% valores_invalidos | is.na(dados$Turma))
+
+# Cria vetor com os valores válidos
+valores_validos <- dados$Turma[!(dados$Turma %in% valores_invalidos | is.na(dados$Turma))]
+
+# Calcula MODA (valor mais frequente)
+moda <- names(sort(table(valores_validos), decreasing = TRUE))[1]
+
+# Frequência relativa para redistribuição probabilística
+frequencias <- table(valores_validos)
+proporcoes <- prop.table(frequencias)
+
+# Substituição nas linhas inválidas com base na MODA
+set.seed(123)
+dados$Turma[linhas_invalidas] <- sample(names(proporcoes), 
+                                        length(linhas_invalidas), 
+                                        replace = TRUE, 
+                                        prob = proporcoes)
+
+colSums(is.na(dados))
+```
+Atualização dos dados da coluna Salario
+```{r}
+dados$Salario = as.numeric(dados$Salario)
+
+# Calcula a mediana dos salários válidos (ignora os NA)
+mediana_salario = median(dados$Salario, na.rm = TRUE)
+
+# Substitui os valores NA pela mediana
+dados$Salario[is.na(dados$Salario)] = mediana_salario
+
+colSums(is.na(dados))
+```
+Atualização dos dados da coluna Trabalha
+```{r}
+# Converte para string para evitar erros com factor
+dados$Trabalha <- as.character(dados$Trabalha)
+
+# Remove espaços em branco e trata valores inconsistentes
+dados$Trabalha <- trimws(dados$Trabalha)
+
+# Considera "1", "1.0"
+dados$Trabalha <- tolower(dados$Trabalha)
+dados$Trabalha[dados$Trabalha %in% c("1", "1.0")] <- "TRUE"
+dados$Trabalha[dados$Trabalha %in% c("0", "0.0")] <- "FALSE"
+
+# Converte para booleano
+dados$Trabalha <- as.logical(dados$Trabalha)
+
+# Substituição dos NA pela moda
+valores_validos <- dados$Trabalha[!is.na(dados$Trabalha)]
+
+if (length(valores_validos) > 0) {
+  moda_trabalha <- as.logical(names(sort(table(valores_validos), decreasing = TRUE))[1])
+  dados$Trabalha[is.na(dados$Trabalha)] <- moda_trabalha
+} else {
+  cat("Nenhum valor válido na coluna Trabalha para calcular moda.\n")
+}
+
+colSums(is.na(dados))
+```
+Atualização dos dados da tabela Cidade
+```{r}
+# EDITAR O GERADOR CIDADE E ESTADO
+dados$Cidade <- as.character(dados$Cidade)
+```
+Atualização dos dados da tabela UsaAlcool
 
