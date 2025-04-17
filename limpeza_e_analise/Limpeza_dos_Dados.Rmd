@@ -6,7 +6,7 @@ getwd()
 ```
 Requisição do arquivo com os dados
 ```{r}
-dados = read.csv2("C:/FACULDADE/7_SEMESTRE/PI_DATA_SCIENCE/files/alunos_detalhes.csv", sep = ';',na.strings = "", stringsAsFactors = T)
+dados = read.csv2("../files/alunos_detalhes.csv", sep = ';',na.strings = "", stringsAsFactors = T)
 head(dados)
 ```
 mudança da nomenclatura das colunas
@@ -18,7 +18,7 @@ verificação de valores ausentes
 ```{r}
 colSums(is.na(dados))
 ```
-correção dos dados "nome_usuario"
+correção dos dados "Nome"
 ```{r}
 # Excluir os registros com nomes nulos
 dados = dados[!is.na(dados$Nome), ]
@@ -75,6 +75,13 @@ data_estimativa
 dados$DataDeNascimento[is.na(dados$DataDeNascimento)] <- data_estimativa
 
 colSums(is.na(dados))
+
+boxplot(dados$DataDeNascimento,
+        main = "Nascimento",
+        ylab = "Anos",
+        col = "lightblue",
+        border = "darkblue",
+        notch = TRUE)
 ```
 Atualização dos cursos
 ```{r}
@@ -118,7 +125,7 @@ colSums(is.na(dados))
 ```
 Atualização da coluna Turmas
 ```{r}
-dados$Turma <- as.character(dados$Turma)
+dados$Turma = as.character(dados$Turma)
 
 counts = table(dados$Turma)
 counts
@@ -126,24 +133,24 @@ counts
 unique(dados$Turma)
 
 # Define os valores inválidos
-valores_invalidos <- c("!!!INVALID_DATA!!!", "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX")
+valores_invalidos = c("!!!INVALID_DATA!!!", "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX")
 
 # Marca quais são inválidos e NA
-linhas_invalidas <- which(dados$Turma %in% valores_invalidos | is.na(dados$Turma))
+linhas_invalidas = which(dados$Turma %in% valores_invalidos | is.na(dados$Turma))
 
 # Cria vetor com os valores válidos
-valores_validos <- dados$Turma[!(dados$Turma %in% valores_invalidos | is.na(dados$Turma))]
+valores_validos = dados$Turma[!(dados$Turma %in% valores_invalidos | is.na(dados$Turma))]
 
 # Calcula MODA (valor mais frequente)
-moda <- names(sort(table(valores_validos), decreasing = TRUE))[1]
+moda = names(sort(table(valores_validos), decreasing = TRUE))[1]
 
 # Frequência relativa para redistribuição probabilística
-frequencias <- table(valores_validos)
-proporcoes <- prop.table(frequencias)
+frequencias = table(valores_validos)
+proporcoes = prop.table(frequencias)
 
 # Substituição nas linhas inválidas com base na MODA
 set.seed(123)
-dados$Turma[linhas_invalidas] <- sample(names(proporcoes), 
+dados$Turma[linhas_invalidas] = sample(names(proporcoes), 
                                         length(linhas_invalidas), 
                                         replace = TRUE, 
                                         prob = proporcoes)
@@ -161,6 +168,13 @@ mediana_salario = median(dados$Salario, na.rm = TRUE)
 dados$Salario[is.na(dados$Salario)] = mediana_salario
 
 colSums(is.na(dados))
+
+boxplot(dados$Salario,
+        main = "Distribuição de Salários",
+        ylab = "Salário (R$)",
+        col = "lightblue",
+        border = "darkblue",
+        notch = TRUE)
 ```
 Atualização dos dados da coluna Trabalha
 ```{r}
