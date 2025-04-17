@@ -1,12 +1,12 @@
 ---
-title: "Limpeza_dos_Dados"
+title: "Limpeza de Dados; padronização e correção de outliers"
 ---
 ```{r}
 getwd()
 ```
 Requisição do arquivo com os dados
 ```{r}
-dados = read.csv2("../files/alunos_detalhes.csv", sep = ';',na.strings = "", stringsAsFactors = T)
+dados = read.csv2("alunos_detalhes.csv", sep = ';',na.strings = "", stringsAsFactors = T)
 head(dados)
 ```
 mudança da nomenclatura das colunas
@@ -122,6 +122,7 @@ while (sum(is.na(dados$Curso)) > 0) {
 }
 
 colSums(is.na(dados))
+
 ```
 Atualização da coluna Turmas
 ```{r}
@@ -399,4 +400,37 @@ dados$ProblemasMentais[entradas_invalidas] <- sample(
 
 colSums(is.na(dados))
 ```
+
+```{r}
+boxplot(Salario ~ Curso, data = dados,
+        main = "Salário por Curso",
+        xlab = "Curso", ylab = "Salário",
+        las = 2, col = rainbow(length(unique(dados$Curso))))
+
+```
+```{r}
+boxplot(Salario ~ Turma, data = dados,
+        main = "Salário por Turma",
+        xlab = "Turma", ylab = "Salário",
+        las = 2, col = rainbow(length(unique(dados$Turma))))
+
+```
+```{r}
+boxplot(Salario ~ Estado, data = dados,
+        main = "Salário por Estado",
+        xlab = "Estado", ylab = "Salário",
+        las = 2, col = rainbow(length(unique(dados$Estado))))
+
+```
+
+```{r}
+boxplot(Salario ~ Trabalha, data = dados,
+        main = "Salário por Situação de Trabalho",
+        xlab = "", ylab = "Salário",
+        col = c("skyblue", "salmon"),
+        names = c("Não trabalha", "Trabalha"))  # <- muda os nomes
+
+
+```
+
 
