@@ -34,10 +34,10 @@ head(nomes_titulo)
 dados$Nome = as.character(dados$Nome)
 
 # Conta quantidade de titulos
-qtd_sr  = sum(grepl("Sr\\.", nomes))
-qtd_sra = sum(grepl("Sra\\.", nomes))
-qtd_dra = sum(grepl("Dra\\.", nomes))
-qtd_dr  = sum(grepl("Dr\\.", nomes))
+qtd_sr  = sum(grepl("Sr\\.", nomes_titulo))
+qtd_sra = sum(grepl("Sra\\.", nomes_titulo))
+qtd_dra = sum(grepl("Dra\\.", nomes_titulo))
+qtd_dr  = sum(grepl("Dr\\.", nomes_titulo))
 
 # Mostra o resultado
 contagem = data.frame(
@@ -192,8 +192,197 @@ colSums(is.na(dados))
 ```
 Atualização dos dados da tabela Cidade
 ```{r}
-# EDITAR O GERADOR CIDADE E ESTADO
 dados$Cidade <- as.character(dados$Cidade)
+
+options(max.print = 99999)
+counts = table(dados$Cidade)
+#counts
+
+#unique(dados$Cidade)
+
+# Define os valores inválidos
+valores_invalidos <- c("!!!INVALID_DATA!!!", "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX")
+
+# Marca quais são inválidos e NA
+linhas_invalidas <- which(dados$Cidade %in% valores_invalidos | is.na(dados$Cidade))
+
+# Cria vetor com os valores válidos
+valores_validos <- dados$Cidade[!(dados$Cidade %in% valores_invalidos | is.na(dados$Cidade))]
+
+# Calcula MODA (valor mais frequente)
+moda <- names(sort(table(valores_validos), decreasing = TRUE))[1]
+
+# Frequência relativa para redistribuição probabilística
+frequencias <- table(valores_validos)
+proporcoes <- prop.table(frequencias)
+
+# Substituição nas linhas inválidas com base na MODA
+set.seed(123)
+dados$Cidade[linhas_invalidas] <- sample(names(proporcoes), 
+                                        length(linhas_invalidas), 
+                                        replace = TRUE, 
+                                        prob = proporcoes)
+
+colSums(is.na(dados))
+
 ```
-Atualização dos dados da tabela UsaAlcool
+Atualização dos dados da tabela Estado
+```{r}
+dados$Estado <- as.character(dados$Estado)
+counts = table(dados$Estado)
+counts
+
+unique(dados$Estado)
+
+# Define os valores inválidos
+valores_invalidos <- c("!!", "XX")
+
+# Marca quais são inválidos e NA
+linhas_invalidas <- which(dados$Estado %in% valores_invalidos | is.na(dados$Estado))
+
+# Cria vetor com os valores válidos
+valores_validos <- dados$Estado[!(dados$Estado %in% valores_invalidos | is.na(dados$Estado))]
+
+# Calcula MODA (valor mais frequente)
+moda <- names(sort(table(valores_validos), decreasing = TRUE))[1]
+
+# Frequência relativa para redistribuição probabilística
+frequencias <- table(valores_validos)
+proporcoes <- prop.table(frequencias)
+
+# Substituição nas linhas inválidas com base na MODA
+set.seed(123)
+dados$Estado[linhas_invalidas] <- sample(names(proporcoes), 
+                                        length(linhas_invalidas), 
+                                        replace = TRUE, 
+                                        prob = proporcoes)
+
+colSums(is.na(dados))
+```
+Atualização tabela UsaAlcool
+```{r}
+# Converte para string para evitar erros com factor
+dados$UsaAlcool <- as.character(dados$UsaAlcool)
+
+# Remove espaços em branco e trata valores inconsistentes
+dados$UsaAlcool <- trimws(dados$UsaAlcool)
+
+# Considera "1", "1.0"
+dados$UsaAlcool <- tolower(dados$UsaAlcool)
+dados$UsaAlcool[dados$UsaAlcool %in% c("1", "1.0")] <- "TRUE"
+dados$UsaAlcool[dados$UsaAlcool %in% c("0", "0.0")] <- "FALSE"
+
+# Converte para booleano
+dados$UsaAlcool <- as.logical(dados$UsaAlcool)
+
+# Substituição dos NA pela moda
+valores_validos <- dados$UsaAlcool[!is.na(dados$UsaAlcool)]
+
+if (length(valores_validos) > 0) {
+  moda_UsaAlcool <- as.logical(names(sort(table(valores_validos), decreasing = TRUE))[1])
+  dados$UsaAlcool[is.na(dados$UsaAlcool)] <- moda_UsaAlcool
+} else {
+  cat("Nenhum valor válido na coluna UsaAlcool para calcular moda.\n")
+}
+
+colSums(is.na(dados))
+```
+Atualização da tabela Fuma
+```{r}
+# Converte para string para evitar erros com factor
+dados$Fuma <- as.character(dados$Fuma)
+
+# Remove espaços em branco e trata valores inconsistentes
+dados$Fuma <- trimws(dados$Fuma)
+
+# Considera "1", "1.0"
+dados$Fuma <- tolower(dados$Fuma)
+dados$Fuma[dados$Fuma %in% c("1", "1.0")] <- "TRUE"
+dados$Fuma[dados$Fuma %in% c("0", "0.0")] <- "FALSE"
+
+# Converte para booleano
+dados$Fuma <- as.logical(dados$Fuma)
+
+# Substituição dos NA pela moda
+valores_validos <- dados$Fuma[!is.na(dados$Fuma)]
+
+if (length(valores_validos) > 0) {
+  moda_Fuma <- as.logical(names(sort(table(valores_validos), decreasing = TRUE))[1])
+  dados$Fuma[is.na(dados$Fuma)] <- moda_Fuma
+} else {
+  cat("Nenhum valor válido na coluna Fuma para calcular moda.\n")
+}
+
+colSums(is.na(dados))
+```
+Atualização da tabela UsaDrogas
+```{r}
+# Converte para string para evitar erros com factor
+dados$UsaDrogas <- as.character(dados$UsaDrogas)
+
+# Remove espaços em branco e trata valores inconsistentes
+dados$UsaDrogas <- trimws(dados$UsaDrogas)
+
+# Considera "1", "1.0"
+dados$UsaDrogas <- tolower(dados$UsaDrogas)
+dados$UsaDrogas[dados$UsaDrogas %in% c("1", "1.0")] <- "TRUE"
+dados$UsaDrogas[dados$UsaDrogas %in% c("0", "0.0")] <- "FALSE"
+
+# Converte para booleano
+dados$UsaDrogas <- as.logical(dados$UsaDrogas)
+
+# Substituição dos NA pela moda
+valores_validos <- dados$UsaDrogas[!is.na(dados$UsaDrogas)]
+
+if (length(valores_validos) > 0) {
+  moda_UsaDrogas <- as.logical(names(sort(table(valores_validos), decreasing = TRUE))[1])
+  dados$UsaDrogas[is.na(dados$UsaDrogas)] <- moda_UsaDrogas
+} else {
+  cat("Nenhum valor válido na coluna UsaDrogas para calcular moda.\n")
+}
+
+colSums(is.na(dados))
+```
+Atualização da tabela ProblemasMentais
+```{r}
+dados$ProblemasMentais <- as.character(dados$ProblemasMentais)
+
+counts = table(dados$ProblemasMentais)
+counts
+
+unique(dados$ProblemasMentais)
+levels(dados$ProblemasMentais)
+summary(dados$ProblemasMentais)
+
+# Converte para texto e remove espaços
+dados$ProblemasMentais <- as.character(dados$ProblemasMentais)
+dados$ProblemasMentais <- trimws(dados$ProblemasMentais)
+
+# Define doenças mentais reais para redistribuição
+doencas_reais <- c(
+  "Depressão",
+  "Ansiedade",
+  "Transtorno Bipolar",
+  "Transtorno de Pânico",
+  "TOC",
+  "Esquizofrenia",
+  "Transtorno de Personalidade",
+  "Nenhum"
+)
+
+# Identifica entradas inválidas (por regex ou excesso de Xs)
+entradas_invalidas <- is.na(dados$ProblemasMentais) |
+                      grepl("!!!INVALID_DATA!!!|X{10,}|\\.", dados$ProblemasMentais) |
+                      nchar(dados$ProblemasMentais) > 30
+
+# Substitui todas essas entradas por uma doença real aleatória
+set.seed(42)  # para manter reprodutibilidade
+dados$ProblemasMentais[entradas_invalidas] <- sample(
+  doencas_reais,
+  size = sum(entradas_invalidas),
+  replace = TRUE
+)
+
+colSums(is.na(dados))
+```
 
