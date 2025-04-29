@@ -139,6 +139,56 @@ for aluno_id in tqdm(alunos_ids):
     
     cursor.execute("INSERT INTO situacao_aluno (aluno_id, salario_medio, trabalha, cidade, estado, uso_alcool, fuma, uso_drogas, problemas_mentais) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)",
                    (aluno_id, salario_medio, trabalha, cidade, estado, uso_alcool, fuma, uso_drogas, problemas_mentais))
+    
+# Inserção de matérias
+print("Inserindo matérias...")
+for _ in tqdm(range(NUM_MATERIAS)):
+    nome = faker.word().capitalize()
+    curso_id = random.choice(cursos_ids)
+    professor_id = random.choice(professores_ids)
+    
+    cursor.execute("INSERT INTO materias (nome, curso_id, professor_id) VALUES (%s, %s, %s)", (nome, curso_id, professor_id))
+    materias_ids.append(cursor.lastrowid)
+
+# Inserção de avaliações
+print("Inserindo avaliações...")
+for _ in tqdm(range(NUM_AVALIACOES)):
+    materia_id = random.choice(materias_ids)
+    titulo = faker.sentence()
+    descricao = faker.paragraph()
+    data = faker.date_this_year().strftime('%Y-%m-%d')
+    
+    cursor.execute("INSERT INTO avaliacoes (materia_id, titulo, descricao, data) VALUES (%s, %s, %s, %s)", 
+                   (materia_id, titulo, descricao, data))
+    avaliacoes_ids.append(cursor.lastrowid)
+
+# Inserção de notas
+print("Inserindo notas...")
+for _ in tqdm(range(NUM_NOTAS)):
+    aluno_id = random.choice(alunos_ids)
+    avaliacao_id = random.choice(avaliacoes_ids)
+    nota = round(random.uniform(0, 10), 2)
+    
+    cursor.execute("INSERT INTO notas (aluno_id, avaliacao_id, nota) VALUES (%s, %s, %s)", (aluno_id, avaliacao_id, nota))
+
+# Inserção de alertas
+print("Inserindo alertas...")
+for _ in tqdm(range(NUM_ALERTAS)):
+    aluno_id = random.choice(alunos_ids)
+    mensagem = faker.sentence()
+    
+    cursor.execute("INSERT INTO alertas (aluno_id, mensagem) VALUES (%s, %s)", (aluno_id, mensagem))
+
+# Inserção de frequência
+print("Inserindo frequência...")
+for _ in tqdm(range(NUM_FREQUENCIA)):
+    aluno_id = random.choice(alunos_ids)
+    materia_id = random.choice(materias_ids)
+    data = faker.date_this_year().strftime('%Y-%m-%d')
+    presente = random.choice([True, False])
+    
+    cursor.execute("INSERT INTO frequencia (aluno_id, materia_id, data, presente) VALUES (%s, %s, %s, %s)", 
+                   (aluno_id, materia_id, data, presente))
 
 # Confirmar alterações no banco de dados
 conn.commit()

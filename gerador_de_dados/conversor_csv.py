@@ -4,13 +4,13 @@ import pandas as pd
 # Conectar ao banco de dados MySQL
 conexao = mysql.connector.connect(
     host="localhost",      # Altere se necessário
-    user="root",    # Seu usuário do MySQL
-    password="",  # Sua senha do MySQL
+    user="root",           # Seu usuário do MySQL
+    password="",           # Sua senha do MySQL
     database="faculdade"   # Nome do banco de dados
 )
 
 # Criar um cursor e executar a consulta
-consulta = "SELECT * FROM alunos_detalhes;"
+consulta = "SELECT * FROM vw_alunos_detalhado;"  # Corrigido FROM e nome da view
 df = pd.read_sql(consulta, conexao)
 
 consulta_frequencia = "SELECT * FROM frequencia;"
