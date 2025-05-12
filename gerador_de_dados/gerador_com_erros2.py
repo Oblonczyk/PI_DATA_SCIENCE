@@ -1,23 +1,23 @@
 import pandas as pd
 import random
 from faker import Faker
-from sqlalchemy import create_engine
+# from sqlalchemy import create_engine
 
 # Configuração do banco
-usuario = 'root'
-senha = ''
-host = 'localhost'
-porta = '3306'
-nome_banco = 'faculdade'
-tabela_destino = 'alunos'
+# usuario = 'root'
+# senha = ''
+# host = 'localhost'
+# porta = '3306'
+# nome_banco = 'faculdade'
+# tabela_destino = 'alunos'
 
 # Criar engine de conexão
-engine = create_engine(f'mysql+pymysql://{usuario}:{senha}@{host}:{porta}/{nome_banco}')
+# engine = create_engine(f'mysql+pymysql://{usuario}:{senha}@{host}:{porta}/{nome_banco}')
 
 faker = Faker('pt_BR')
 
 # Parâmetros
-num_alunos = 10000
+num_alunos = 100000
 
 # Opções
 cursos = ['Administração', 'Direito', 'Engenharia', 'Pedagogia', 'Psicologia', 'Engenharia Civil', 'Engenharia Elétrica', 'Engenharia Mecânica', 'Engenharia de Produção', 'Arquitetura e Urbanismo', 'Medicina', 'Enfermagem', 'Biomedicina', 'Educação Física', 'Fisioterapia', 'Odontologia', 'Farmácia', 'Veterinária', 'Nutrição', 'Computação', 'Ciência da Computação', 'Sistemas de Informação', 'Análise e Desenvolvimento de Sistemas', 'Jogos Digitais', 'Redes de Computadores', 'Banco de Dados', 'Matemática', 'Física', 'Química', 'Biologia', 'Geografia', 'História', 'Letras', 'Serviço Social', 'Relações Internacionais', 'Jornalismo', 'Publicidade e Propaganda', 'Design Gráfico', 'Marketing', 'Recursos Humanos', 'Engenharia Ambiental', 'Engenharia de Alimentos', 'Engenharia Química', 'Zootecnia', 'Gastronomia', 'Moda', 'Teatro', 'Música', 'Dança', 'Cinema', 'Artes Visuais', 'Ciências Contábeis', 'Ciências Econômicas', 'Teologia', 'Fonoaudiologia', 'Terapia Ocupacional', 'Gestão Pública', 'Gestão Comercial', 'Logística', 'Secretariado Executivo', 'Turismo', 'Hotelaria', 'Ciências Sociais', 'Estatística', 'Biblioteconomia', 'Museologia', 'Educação Especial', 'Segurança do Trabalho', 'Radiologia']
@@ -244,6 +244,6 @@ df.to_csv('alunos_com_erros.csv', index=False, encoding='utf-8-sig')
 print("Arquivo com dados sujos salvo como 'alunos_com_erros.csv'")
 
 # Criar e inserir
-df = pd.DataFrame(dados, columns=colunas)
-df.to_sql(tabela_destino, con=engine, index=False, if_exists='append')
-print(f"{num_alunos} alunos inseridos na tabela '{tabela_destino}' do banco '{nome_banco}'!")
+# df = pd.DataFrame(dados, columns=colunas)
+# df.to_sql(tabela_destino, con=engine, index=False, if_exists='append')
+# print(f"{num_alunos} alunos inseridos na tabela '{tabela_destino}' do banco '{nome_banco}'!")
