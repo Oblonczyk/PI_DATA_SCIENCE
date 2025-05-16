@@ -1,0 +1,349 @@
+---
+title: "Limpeza de Dados - Alunos"
+---
+Carregamento dos dados
+```{r}
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+
+getwd()
+dados = read.csv("../files/alunos_com_erros.csv", sep = ",", na.strings = "", stringsAsFactors = TRUE)
+head(dados)
+str(dados)
+summary(dados)
+```
+Mudança dos nomes das colunas
+```{r}
+colnames(dados) = c(
+  "ID", "Nome", "Email", "Curso", "Status", "Turma", "Sexo", "Idade", 
+  "Trabalha", "Renda", "Acompanhamento Medico", "Tem Filho", "Estado Civil", 
+  "Semestre", "Bimestre", 
+  "Aula 1", "Professor 1", "Nota 1", "Falta Materia 1", "Desempenho 1", 
+  "Aula 2", "Professor 2", "Nota 2", "Falta Materia 2", "Desempenho 2", 
+  "Aula 3", "Professor 3", "Nota 3", "Falta Materia 3", "Desempenho 3", 
+  "Aula 4", "Professor 4", "Nota 4", "Falta Materia 4", "Desempenho 4", 
+  "Aula 5", "Professor 5", "Nota 5", "Falta Materia 5", "Desempenho 5", 
+  "Risco de Evasao"
+)
+
+head(dados)
+```
+Verificação de valores ausentes
+```{r}
+sapply(dados, function(x) sum(is.na(x), na.rm = T))
+```
+Verificação de Outliers antes da limpeza
+```{r}
+# Boxplot Idade
+boxplot(dados$Idade,
+        main = "Boxplot - Idade",
+        ylab = "Idade",
+        col = "lightblue",
+        border = "darkblue")
+
+# Histograma Idade
+hist(dados$Idade,
+     main = "Histograma - Idade",
+     xlab = "Idade",
+     col = "lightgreen",
+     border = "white")
+
+
+# Boxplot Renda Familiar
+boxplot(dados$Renda,
+        main = "Boxplot - Renda",
+        ylab = "Renda",
+        col = "lightblue",
+        border = "darkblue")
+
+# Histograma Renda Familiar
+hist(dados$Renda,
+     main = "Histograma - Renda",
+     xlab = "Renda",
+     col = "lightgreen",
+     border = "white")
+
+# Barplot Estado Civil
+barplot(table(dados$`Estado Civil`),
+        main = "Distribuição - Estado Civil",
+        col = "orange",
+        ylab = "Frequência",
+        las = 2)
+```
+Verificação de inconsistencias
+```{r}
+table(dados$Status)
+table(dados$Curso)
+table(dados$Turma)
+```
+Tratamento da coluna Nome
+```{r}
+limpar_nomes <- function(dados) {
+  # Garante que Nome e Email são texto
+  dados$Nome <- as.character(dados$Nome)
+  dados$Email <- as.character(dados$Email)
+  
+  # Lista de nomes inválidos explícitos
+  nomes_invalidos <- c("Desconhecido", "NULL", "#######", "0923023", "user", "notexist", "22333123", "?", "", "none.com")
+  
+  # Regex para nome válido: apenas letras e espaços, pelo menos 2 caracteres
+  regex_nome_valido <- "^[A-Za-zÀ-ÿ ]{2,}$"
+  
+  # Extrai o nome antes do @
+  nome_do_email <- sub("@.*", "", dados$Email)
+  
+  # Verifica se nome atual é inválido
+  nome_invalido_logico <- (
+    is.na(dados$Nome) |
+    dados$Nome %in% nomes_invalidos |
+    !grepl(regex_nome_valido, dados$Nome)
+  )
+  
+  # Verifica se o nome extraído do email é válido
+  nome_email_valido <- grepl(regex_nome_valido, nome_do_email)
+  
+  # Substitui nomes inválidos por nomes válidos extraídos do e-mail
+  substituir_nome <- nome_invalido_logico & nome_email_valido
+  dados$Nome[substituir_nome] <- nome_do_email[substituir_nome]
+  
+  # Revalida após substituição
+  nome_invalido_final <- (
+    is.na(dados$Nome) |
+    dados$Nome %in% nomes_invalidos |
+    !grepl(regex_nome_valido, dados$Nome)
+  )
+  
+  # Remove entradas que ainda são inválidas
+  dados <- dados[!nome_invalido_final, ]
+  
+  # Remove nomes "suspeitos": tudo minúsculo, sem espaço (login típico)
+  nome_suspeito <- grepl("^[a-z]+$", dados$Nome) & !grepl(" ", dados$Nome)
+  dados <- dados[!nome_suspeito, ]
+  
+  # Remove títulos como Sr., Sra., Dr., Dra.
+  dados$Nome <- gsub("\\b(Sr\\.|Sra\\.|Dr\\.|Dra\\.)\\s*", "", dados$Nome)
+  
+  # Normaliza nomes: tudo lowercase + capitaliza
+  dados$Nome <- tools::toTitleCase(tolower(dados$Nome))
+  
+  return(dados)
+}
+
+dados = limpar_nomes(dados)
+
+duplicados = dados$Nome[duplicated(dados$Nome)]
+unique(duplicados)
+
+colSums(is.na(dados))
+```
+Tratamento coluna Email
+```{r}
+limpar_emails <- function(dados) {
+  # Garante que Nome e Email são texto
+  dados$Nome <- as.character(dados$Nome)
+  dados$Email <- as.character(dados$Email)
+  
+  # Lista de e-mails claramente inválidos
+  emails_invalidos <- c("@email", "NULL", "#######", "XX0294393LLL", "user", "notexist", "22333123", "?", "", "none.com")
+  
+  # Regex simples para validar e-mail
+  regex_email_valido <- "^[^@\\s]+@[^@\\s]+\\.[a-zA-Z]{2,}$"
+  
+  # Marcar como NA todos os emails que estão na lista ou que não passam na regex
+  email_invalido_logico <- (
+    is.na(dados$Email) |
+    dados$Email %in% emails_invalidos |
+    !grepl(regex_email_valido, dados$Email)
+  )
+  dados$Email[email_invalido_logico] <- NA
+  
+  # Geração de nome limpo (para criar email padrão)
+  nome_limpo <- tolower(gsub(" ", "", dados$Nome))
+  
+  # Substitui os e-mails faltantes por nome@unifeob.com
+  dados$Email[is.na(dados$Email)] <- paste0(nome_limpo[is.na(dados$Email)], "@unifeob.com")
+  
+  # (Opcional) forçar minúsculas
+  dados$Email <- tolower(dados$Email)
+  
+  return(dados)
+}
+
+dados = limpar_emails(dados)
+
+duplicados = dados$Email[duplicated(dados$Email)]
+unique(duplicados)
+
+colSums(is.na(dados))
+```
+
+Tratamento coluna Curso
+```{r}
+dados$Curso = as.character(dados$Curso)
+
+counts = table(dados$Curso)
+counts
+
+unique(dados$Curso)
+levels(dados$Curso)
+summary(dados$Curso)
+
+insercoes = c('Administração', 'Direito', 'Engenharia', 'Pedagogia', 'Psicologia', 'Engenharia Civil', 'Engenharia Elétrica', 'Engenharia Mecânica', 'Engenharia de Produção', 'Arquitetura e Urbanismo', 'Medicina', 'Enfermagem', 'Biomedicina', 'Educação Física', 'Fisioterapia', 'Odontologia', 'Farmácia', 'Veterinária', 'Nutrição', 'Computação', 'Ciência da Computação', 'Sistemas de Informação', 'Análise e Desenvolvimento de Sistemas', 'Jogos Digitais', 'Redes de Computadores', 'Banco de Dados', 'Matemática', 'Física', 'Química', 'Biologia', 'Geografia', 'História', 'Letras', 'Serviço Social', 'Relações Internacionais', 'Jornalismo', 'Publicidade e Propaganda', 'Design Gráfico', 'Marketing', 'Recursos Humanos', 'Engenharia Ambiental', 'Engenharia de Alimentos', 'Engenharia Química', 'Zootecnia', 'Gastronomia', 'Moda', 'Teatro', 'Música', 'Dança', 'Cinema', 'Artes Visuais', 'Ciências Contábeis', 'Ciências Econômicas', 'Teologia', 'Fonoaudiologia', 'Terapia Ocupacional', 'Gestão Pública', 'Gestão Comercial', 'Logística', 'Secretariado Executivo', 'Turismo', 'Hotelaria', 'Ciências Sociais', 'Estatística', 'Biblioteconomia', 'Museologia', 'Educação Especial', 'Segurança do Trabalho', 'Radiologia')
+
+i = 1
+
+while (sum(is.na(dados$Curso)) > 0) {
+  
+  posicao = which(is.na(dados$Curso))[1]
+  dados$Curso[posicao] = insercoes[i]
+  
+  i = i + 1
+  if (i > length(insercoes)) {
+    i = 1
+  }
+}
+
+colSums(is.na(dados))
+```
+Correção da Coluna Sexo
+```{r}
+dados$Sexo <- tolower(dados$Sexo)
+dados$Sexo[dados$Sexo %in% c("masculino", "masc", "m")] <- "masculino"
+dados$Sexo[dados$Sexo %in% c("feminino", "fem", "feminno")] <- "feminino"
+dados$Sexo[!dados$Sexo %in% c("masculino", "feminino")] <- NA
+
+sexo_tab <- table(dados$Sexo)
+if (length(sexo_tab) >= 2) {
+  sexo_prop <- as.numeric(sexo_tab) / sum(sexo_tab)
+  sexo_names <- names(sexo_tab)
+  
+  n_na <- sum(is.na(dados$Sexo))
+  
+  set.seed(123)
+  dados$Sexo[is.na(dados$Sexo)] <- sample(sexo_names,
+                                           size = n_na,
+                                           replace = TRUE,
+                                           prob = sexo_prop)
+} else {
+  warning("Não há dados suficientes para aplicar o rateio proporcional em Sexo.")
+}
+
+table(dados$Sexo)
+sum(is.na(dados$Sexo))
+```
+Correção da coluna Idade
+```{r}
+dados$Idade = as.numeric(as.character(dados$Idade))
+mediana_idade = median(dados$Idade[dados$Idade >= 17 & dados$Idade <= 80], na.rm = TRUE)
+dados$Idade[dados$Idade < 17 | dados$Idade > 80 | is.na(dados$Idade)] <- mediana_idade
+
+# Tratamento de possíveis erros de conversão
+summary(dados$Idade)
+```
+
+Tratamento da Renda
+```{r}
+dados$Renda = as.numeric(as.character(dados$Renda))
+
+# Calculo usando Intervalo Interquantil (IQR)
+Q1_renda <- quantile(dados$Renda, 0.25, na.rm = TRUE)
+Q3_renda <- quantile(dados$Renda, 0.75, na.rm = TRUE)
+IQR_renda <- Q3_renda - Q1_renda
+limite_inferior_renda <- Q1_renda - 1.5 * IQR_renda
+limite_superior_renda <- Q3_renda + 1.5 * IQR_renda
+mediana_renda <- median(dados$Renda[dados$Renda >= limite_inferior_renda & dados$Renda <= limite_superior_renda], na.rm = TRUE)
+
+# Substituir outliers por mediana
+dados$Renda[dados$Renda < limite_inferior_renda | dados$Renda > limite_superior_renda | is.na(dados$Renda)] <- mediana_renda
+
+summary(dados$Renda)
+
+```
+Correção da coluna Estado Civil
+```{r}
+dados$`Estado Civil` <- tolower(trimws(dados$`Estado Civil`))
+
+dados$`Estado Civil`[dados$`Estado Civil` %in% c("solteiro", "solteira", "s")] <- "solteiro"
+dados$`Estado Civil`[dados$`Estado Civil` %in% c("casado", "casada", "c", "casadoo")] <- "casado"
+dados$`Estado Civil`[dados$`Estado Civil` %in% c("divorciado", "divorciada", "d")] <- "divorciado"
+dados$`Estado Civil`[dados$`Estado Civil` %in% c("viuvo", "viúva", "v")] <- "viuvo"
+
+dados$`Estado Civil`[!dados$`Estado Civil` %in% c("solteiro", "casado", "divorciado", "viuvo")] <- NA
+
+estado_tab <- table(dados$`Estado Civil`)
+if (length(estado_tab) >= 2) {
+  estado_prop <- as.numeric(estado_tab) / sum(estado_tab)
+  estado_names <- names(estado_tab)
+  
+  n_na_estado <- sum(is.na(dados$`Estado Civil`))
+  
+  set.seed(456)  # Diferente seed para rastreabilidade
+  dados$`Estado Civil`[is.na(dados$`Estado Civil`)] <- sample(estado_names,
+                                                               size = n_na_estado,
+                                                               replace = TRUE,
+                                                               prob = estado_prop)
+} else {
+  warning("Não há dados suficientes para aplicar o rateio proporcional em Estado Civil.")
+}
+
+table(dados$`Estado Civil`)
+sum(is.na(dados$`Estado Civil`))
+```
+Visualizações gráficas
+```{r}
+grafico_barras <- function(coluna, nome){
+  barplot(table(coluna),
+          main = paste("Distribuição -", nome),
+          col = "skyblue",
+          ylab = "Frequência",
+          las = 2)
+}
+
+grafico_barras(dados$Sexo, "Sexo")
+grafico_barras(dados$`Estado Civil`, "Estado Civil")
+grafico_barras(dados$Trabalha, "Trabalha")
+grafico_barras(dados$`Tem Filho`, "Tem Filho")
+grafico_barras(dados$`Risco de Evasao`, "Risco de Evasão")
+
+grafico_numerico <- function(coluna, nome){
+  par(mfrow=c(1,2))
+  hist(coluna,
+       main = paste("Histograma -", nome),
+       xlab = nome,
+       col = "lightgreen",
+       border = "white")
+  
+  boxplot(coluna,
+          main = paste("Boxplot -", nome),
+          ylab = nome,
+          col = "lightblue")
+  par(mfrow=c(1,1))
+}
+
+grafico_numerico(dados$Idade, "Idade")
+grafico_numerico(dados$Renda, "Renda")
+grafico_numerico(dados$`Nota 1`, "Nota 1")
+grafico_numerico(dados$`Falta Materia 1`, "Falta Matéria 1")
+grafico_numerico(dados$`Nota 2`, "Nota 2")
+grafico_numerico(dados$`Falta Materia 2`, "Falta Matéria 2")
+grafico_numerico(dados$`Nota 3`, "Nota 3")
+grafico_numerico(dados$`Falta Materia 3`, "Falta Matéria 3")
+grafico_numerico(dados$`Nota 4`, "Nota 4")
+grafico_numerico(dados$`Falta Materia 4`, "Falta Matéria 4")
+grafico_numerico(dados$`Nota 5`, "Nota 5")
+grafico_numerico(dados$`Falta Materia 5`, "Falta Matéria 5")
+
+boxplot(Renda ~ Trabalha, data = dados,
+        main = "Renda vs Trabalha",
+        xlab = "Trabalha",
+        ylab = "Renda",
+        col = c("lightgreen", "lightblue"))
+
+boxplot(`Nota 1` ~ Sexo, data = dados,
+        main = "Nota 1 por Sexo",
+        xlab = "Sexo",
+        ylab = "Nota 1",
+        col = c("pink", "lightblue"))
+```
+
