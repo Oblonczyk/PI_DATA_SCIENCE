@@ -1,6 +1,5 @@
-
 ```{r}
-alunos = read.csv("alunos_com_erros.csv", sep = ",")
+alunos = read.csv("../files/alunos_com_erros.csv", sep = ",")
 head(alunos)
 str(alunos)
 summary(alunos)
@@ -22,25 +21,18 @@ alunos
 ```
 
 ```{r}
-#Verificando campos com na
-sapply(alunos, function(x) sum(x == "", na.rm = TRUE))
-alunos$curso[alunos$curso == ""] = NA
-alunos$nome[alunos$nome == ""] = "Desconhecido"
-alunos$email[alunos$email == ""] = "Sem e-mail"
-alunos$sexo[alunos$sexo == ""] = "Não informado"
-```
-
-```{r}
 #Correção dos nomes desconhecidos
 head(alunos$nome)
 duplicados = alunos$nome[duplicated(alunos$nome)]
 unique(duplicados)
-nomes_invalidos = c("Desconhecido", "NULL", "#######", "0923023")
+nomes_invalidos = c("Desconhecido", "NULL", "#######", "0923023", "notexist", "22333123", NA, "")
 nome_do_email = sub("@.*", "", alunos$email)
 alunos$nome[alunos$nome %in% nomes_invalidos] = nome_do_email[alunos$nome %in% nomes_invalidos]
 
-```
+alunos = alunos[!is.na(alunos$nome), ]
 
+colSums(is.na(alunos))
+```
 ```{r}
 #Analise de Idade outliers
 boxplot(alunos$idade, main = "Boxplot da Idade", ylab = "Idade", col = "lightblue")
@@ -50,6 +42,8 @@ media_idade = mean(alunos$idade[alunos$idade >= 10 & alunos$idade <= 100], na.rm
 # Substituir idades inválidas pela média
 alunos$idade[alunos$idade < 10 | alunos$idade > 100] = round(media_idade)
 
+alunos$idade[is.na(alunos$idade)] = media_idade
+colSums(is.na(alunos))
 ```
 
 ```{r}
@@ -70,10 +64,11 @@ boxplot(alunos[, c("renda")],
         outline = TRUE) 
 
 media_renda = mean(alunos$renda[alunos$renda > 0 & alunos$renda < 50000], na.rm = TRUE)
-alunos$renda[alunos$renda < 0 | alunos$renda > 50000] = round(media_renda, 2)
+alunos$renda[alunos$renda < 0 | alunos$renda > 50000 | is.na(alunos$renda)] = round(media_renda, 2)
+
+colSums(is.na(alunos))
 
 ```
-
 
 ```{r}
 #Analise das Faltas outliers
@@ -83,9 +78,8 @@ boxplot(alunos[, c("falta1", "falta2", "falta3", "falta4", "falta5")],
         ylab = "Notas")
 alunos
 ```
-
-
 ```{r}
 # Salvar como CSV
-write.csv(dados_limpos, "dados_alunos_limpos.csv", row.names = FALSE, fileEncoding = "UTF-8")
+alunos
+write.csv(alunos, "dados_alunos_limpos.csv", row.names = FALSE, fileEncoding = "UTF-8")
 ```
