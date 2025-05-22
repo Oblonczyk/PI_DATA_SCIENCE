@@ -50,12 +50,47 @@ from pyspark.ml.clustering import KMeans as SparkKMeans
 from pyspark.ml.evaluation import MulticlassClassificationEvaluator
 
 # 📥 Carregar Base de Dados
-df = pd.read_csv(r"C:/Users/bruno/Downloads/PI_DATA_SCIENCE/Analise_BIGDATA_docker/ANALISE_PI/alunos_com_erros.csv")
+#df = pd.read_csv(r"C:/Users/bruno/Downloads/PI_DATA_SCIENCE/Analise_BIGDATA_docker/ANALISE_PI/alunos_com_erros.csv")
 
 # 📊 Exploração Inicial
+#print(df.head())
+#print(df.info())
+#print(df.isnull().sum())
+
+# ================================
+# 📊 Visualização Inicial com mysql
+
+from sqlalchemy import create_engine
+import pandas as pd
+
+# Configuração da conexão
+usuario = 'root'
+senha = ''
+host = 'localhost'
+porta = 3306
+nome_banco = 'faculdade'
+
+# String de conexão
+engine = create_engine(f'mysql+pymysql://{usuario}:{senha}@{host}:{porta}/{nome_banco}')
+
+
+# Consulta os dados da tabela alunos
+query = "SELECT * FROM alunos"
+
+df = pd.read_sql(query, con=engine)
+
+# Conferir os dados
 print(df.head())
 print(df.info())
 print(df.isnull().sum())
+# Verificar os tipos de dados
+print(df.dtypes)
+# Verificar os valores únicos de cada coluna
+for col in df.columns:
+    print(f"Valores únicos em {col}: {df[col].unique()}")
+    
+
+# =================================
 
 # ===============================
 # 📌 Pré-processamento (Pandas)
@@ -101,32 +136,63 @@ print(classification_report(y_test, y_pred, target_names=le_y.classes_.astype(st
 # ===============================
 # 📉 Regressão Linear
 # ===============================
+from sklearn.linear_model import Ridge
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import r2_score, mean_squared_error
+from sklearn.impute import SimpleImputer
+from sklearn.preprocessing import StandardScaler, LabelEncoder
+from sklearn.pipeline import Pipeline
+import pandas as pd
+from sqlalchemy import create_engine
 
-# Se a coluna de target estiver no DataFrame
+# Conectar ao banco e carregar dados no pandas
+engine = create_engine("mysql+pymysql://root:@localhost:3306/faculdade")
+df_model = pd.read_sql("SELECT * FROM alunos", con=engine)
+
 if 'desempenho_1' in df_model.columns:
     X_reg = df_model.drop(columns=['desempenho_1'], errors='ignore')
     y_reg = df_model['desempenho_1']
 
-    # Transformar variáveis categóricas em numéricas (one-hot encoding)
+    # Remover colunas de alta cardinalidade
+    high_card_cols = ['nome_aluno', 'email', 'professor_1', 'professor_2', 'professor_3', 'professor_4', 'professor_5']
+    X_reg = X_reg.drop(columns=high_card_cols, errors='ignore')
+
+    # Transformar variáveis categóricas em numéricas
     X_reg_encoded = pd.get_dummies(X_reg, drop_first=True)
 
-    # Dividir em treino e teste
+    # Codificar target
+    le = LabelEncoder()
+    y_encoded = le.fit_transform(y_reg.astype(str))
+
+    # Dividir dados
     X_train_r, X_test_r, y_train_r, y_test_r = train_test_split(
-        X_reg_encoded, y_reg, test_size=0.2, random_state=42
+        X_reg_encoded, y_encoded, test_size=0.2, random_state=42
     )
 
-    # Criar e treinar o modelo
-    reg = LinearRegression()
-    reg.fit(X_train_r, y_train_r)
-    time.sleep(240)
+    # Pipeline com Ridge Regression (mais rápido)
+    pipeline = Pipeline(steps=[
+        ('imputer', SimpleImputer(strategy='mean')),
+        ('scaler', StandardScaler()),
+        ('regressor', Ridge())
+    ])
+
+    # Treinar pipeline
+    pipeline.fit(X_train_r, y_train_r)
 
     # Fazer predições
-    y_pred_r = reg.predict(X_test_r)
+    y_pred_r = pipeline.predict(X_test_r)
 
     # Avaliar o modelo
     print("R²:", r2_score(y_test_r, y_pred_r))
     print("MSE:", mean_squared_error(y_test_r, y_pred_r))
-    print(X_reg_encoded.shape)
+    print("Formato final das features:", X_reg_encoded.shape)
+
+    print("Classes desempenho_1 codificadas:", list(le.classes_))
+else:
+    print("Coluna desempenho_1 não encontrada na tabela.")
+# ===============================
+# fim Regressão Linear
+# ===============================
 
 # ===============================
 # 📈 Clusterização (KMeans + PCA)
@@ -219,197 +285,43 @@ ConfusionMatrixDisplay.from_predictions(y_test, y_pred)
 plt.figure(1, figsize=(12,6))
 plt.title("Matriz de Confusão - Modelo com 5 Aulas")
 
-# ===============================
-# ⚙️ Análise com PySpark
-# ===============================
-
-# Iniciar sessão Spark
-spark = SparkSession.builder.appName("Modelo_Alunos").master("local[*]").getOrCreate()
-
-# Carregar dados no Spark
-df_spark = spark.read.csv(r"C:/Users/bruno/Downloads/PI_DATA_SCIENCE/Analise_BIGDATA_docker/ANALISE_PI/alunos_com_erros.csv", header=True, inferSchema=True)
-df_spark.printSchema()
-df_spark.show(5)
-
-# Indexar variável alvo
-indexer = StringIndexer(inputCol="risco_evasao", outputCol="label")
-df_indexed = indexer.fit(df_spark).transform(df_spark)
-
-# Definir features numéricas
-features = ["idade", "renda_familiar", "notas_1", "faltas_1", "desempenho_1"]
-
-# Converter para double e preencher nulos
-for col_name in features:
-    df_indexed = df_indexed.withColumn(col_name, col(col_name).cast("double"))
-    mean_val = df_indexed.select(col(col_name)).agg({col_name: "mean"}).collect()[0][0]
-    fill_val = mean_val if mean_val is not None else 0.0
-    df_indexed = df_indexed.na.fill({col_name: fill_val})
-
-# Criar vetor de features
-assembler = VectorAssembler(inputCols=features, outputCol="features")
-df_final = assembler.transform(df_indexed)
-
-# Separar treino e teste
-train_data, test_data = df_final.randomSplit([0.8, 0.2], seed=42)
-
-# Treinar modelo Árvore de Decisão
-dt = DecisionTreeClassifier(labelCol="label", featuresCol="features")
-model = dt.fit(train_data)
-
-# Previsões e avaliação
-predictions = model.transform(test_data)
-
-evaluator = MulticlassClassificationEvaluator(labelCol="label", predictionCol="prediction", metricName="accuracy")
-accuracy = evaluator.evaluate(predictions)
-print(f"Acurácia do modelo Spark: {accuracy:.4f}")
-
-# -------------------------------
-# Visualizar resultado acurácia
-labels = ['Acurácia', 'Erro']
-sizes = [accuracy, 1 - accuracy]
-
-plt.figure(2, figsize=(6,6))
-plt.pie(sizes, labels=labels, autopct='%1.1f%%', startangle=90, colors=['#4CAF50', '#F44336'])
-plt.title('Acurácia do Modelo de Evasão')
-
-# Informações adicionais
-print("\nInformações do DataFrame Spark:")
-print("Colunas disponíveis:", df_spark.columns)
-print("Contagem de linhas:", df_spark.count())
-
-# Criar sessão Spark com configurações mais robustas
-spark = SparkSession.builder \
-    .appName("PI_BIGDATA") \
-    .config("spark.hadoop.fs.defaultFS", "hdfs://localhost:9000") \
-    .config("spark.hadoop.dfs.client.use.datanode.hostname", "true") \
-    .config("spark.driver.extraJavaOptions", "-Djava.net.preferIPv4Stack=true") \
-    .getOrCreate()
-
-try:
-    # Leitura do arquivo CSV no HDFS (tente também sem o protocolo)
-    df_spark = spark.read.csv("C:/Users/bruno/Downloads/PI_DATA_SCIENCE/Analise_BIGDATA_docker/ANALISE_PI/alunos_com_erros.csv",
-                             header=True,
-                             inferSchema=True)
-
-    # Mostrar esquema e amostra
-    df_spark.printSchema()
-    df_spark.show(5)
-
-except Exception as e:
-    print(f"Erro ao ler arquivo: {str(e)}")
-    print("Verifique se:")
-    print("1. O HDFS está rodando (comando 'jps' deve mostrar NameNode e DataNode)")
-    print("2. O arquivo existe no HDFS (hadoop fs -ls /user/)")
-    print("3. A porta do NameNode está correta (geralmente 9000 ou 8020)")
-
-#teste hadoop primeiro
-
-import matplotlib.pyplot as plt
-import seaborn as sns
 from pyspark.sql import SparkSession
 from pyspark.sql.functions import col
 from pyspark.ml.feature import StringIndexer, VectorAssembler
 from pyspark.ml.classification import RandomForestClassifier
 from pyspark.ml.evaluation import MulticlassClassificationEvaluator
+import matplotlib.pyplot as plt
+import seaborn as sns
 import pandas as pd
-
-# 🔧 1. Iniciar sessão Spark
-spark = SparkSession.builder.appName("ClassificacaoEvasao").getOrCreate()
-
-# 📥 2. Carregar os dados
-df = spark.read.csv("C:/Users/bruno/Downloads/PI_DATA_SCIENCE/Analise_BIGDATA_docker/ANALISE_PI/alunos_com_erros.csv", header=True, inferSchema=True)
-
-# 🧼 3. Limpeza
-colunas_numericas = [
-    "idade", "renda_familiar", "faltas_1", "notas_1", "faltas_2", "notas_2",
-    "faltas_3", "notas_3", "faltas_4", "notas_4", "faltas_5", "notas_5"
-]
-for coluna in colunas_numericas:
-    df = df.withColumn(coluna, col(coluna).cast("double"))
-    df = df.fillna({coluna: -1})
-
-colunas_categoricas = [
-    "sexo", "trabalha", "acompanhamento_medico", "tem_filho",
-    "estado_civil", "desempenho_1", "desempenho_2", "desempenho_3",
-    "desempenho_4", "desempenho_5", "risco_evasao"
-]
-for coluna in colunas_categoricas:
-    df = df.fillna({coluna: "desconhecido"})
-
-# 🔄 4. Indexação
-for coluna in colunas_categoricas:
-    indexador = StringIndexer(inputCol=coluna, outputCol=coluna + "_idx", handleInvalid="keep")
-    df = indexador.fit(df).transform(df)
-
-# 🔢 5. Vetorização
-colunas_features = (
-    ["idade", "renda_familiar", "faltas_1", "notas_1", "faltas_2", "notas_2",
-     "faltas_3", "notas_3", "faltas_4", "notas_4", "faltas_5", "notas_5"] +
-    [col + "_idx" for col in colunas_categoricas[:-1]]
-)
-assembler = VectorAssembler(inputCols=colunas_features, outputCol="features", handleInvalid="keep")
-df = assembler.transform(df)
-
-# 🧠 6. Modelo
-rf = RandomForestClassifier(labelCol="risco_evasao_idx", featuresCol="features")
-model = rf.fit(df)
-predictions = model.transform(df)
-
-# 📊 7. Avaliação
-evaluator = MulticlassClassificationEvaluator(
-    labelCol="risco_evasao_idx", predictionCol="prediction", metricName="accuracy"
-)
-accuracy = evaluator.evaluate(predictions)
-print(f"Acurácia do modelo: {accuracy:.4f}")
-
-# 📈 8. Visualizações com matplotlib/seaborn
-
-# Convertendo previsões para Pandas
-preds_pd = predictions.select("risco_evasao_idx", "prediction").toPandas()
-
-# Gráfico 1: Distribuição das classes reais vs preditas
-plt.figure(3, figsize=(10, 5))
-sns.countplot(data=preds_pd, x="risco_evasao_idx", color="blue", label="Real", alpha=0.6)
-sns.countplot(data=preds_pd, x="prediction", color="red", label="Predita", alpha=0.6)
-plt.title("Distribuição das Classes - Real vs Predita")
-plt.xlabel("Classe (risco_evasao_idx)")
-plt.ylabel("Contagem")
-plt.legend()
-plt.grid(True)
-
-
-# Gráfico 2: Matriz de Confusão
-from sklearn.metrics import confusion_matrix
 import numpy as np
+from sklearn.metrics import confusion_matrix
 
-conf_mat = confusion_matrix(preds_pd["risco_evasao_idx"], preds_pd["prediction"])
-plt.figure(4, figsize=(8, 6))
-sns.heatmap(conf_mat, annot=True, fmt="d", cmap="Blues", xticklabels=True, yticklabels=True)
-plt.title("Matriz de Confusão")
-plt.xlabel("Predito")
-plt.ylabel("Real")
-
-
-#TESTE HADOOP DE OUTRA MANEIRA
-from pyspark.sql import SparkSession
-from pyspark.sql.functions import col
-from pyspark.ml.feature import StringIndexer, VectorAssembler
-from pyspark.ml.classification import RandomForestClassifier
-from pyspark.ml.evaluation import MulticlassClassificationEvaluator
-import matplotlib.pyplot as plt
-import seaborn as sns
-import pandas as pd
-
-# Spark session conectada ao Hadoop
+# ===============================
+# 🔧 Iniciar sessão Spark (com Hadoop se quiser)
+# ===============================
 spark = SparkSession.builder \
     .appName("PrevisaoRiscoEvasao") \
     .config("spark.hadoop.fs.defaultFS", "hdfs://localhost:9000") \
+    .config("spark.jars", "C:/caminho/mysql-connector-java-8.0.33.jar") \
     .getOrCreate()
 
-# 1. Leitura dos dados do HDFS
-df = spark.read.csv("C:/Users/bruno/Downloads/PI_DATA_SCIENCE/Analise_BIGDATA_docker/ANALISE_PI/alunos_com_erros.csv", header=True, inferSchema=True)
+# ===============================
+# 📥 Leitura dos dados via JDBC
+# ===============================
+df = spark.read.format("jdbc").options(
+    url="jdbc:mysql://localhost:3306/faculdade",
+    driver="com.mysql.cj.jdbc.Driver",
+    dbtable="alunos",
+    user="root",
+    password=""
+).load()
 
-# 2. Limpeza dos dados
+df.printSchema()
+df.show(5)
+
+# ===============================
+# 🧼 Limpeza e conversão
+# ===============================
 colunas_numericas = ["idade", "renda_familiar", "faltas_1", "notas_1", "faltas_2", "notas_2",
                      "faltas_3", "notas_3", "faltas_4", "notas_4", "faltas_5", "notas_5"]
 colunas_categoricas = ["sexo", "trabalha", "acompanhamento_medico", "tem_filho",
@@ -417,56 +329,112 @@ colunas_categoricas = ["sexo", "trabalha", "acompanhamento_medico", "tem_filho",
                        "desempenho_3", "desempenho_4", "desempenho_5", "risco_evasao"]
 
 for coln in colunas_numericas:
-    df = df.withColumn(coln, col(coln).cast("double")).fillna({coln: -1})
+    df = df.withColumn(coln, col(coln).cast("double")).na.fill({coln: -1})
 
 for colc in colunas_categoricas:
-    df = df.fillna({colc: "desconhecido"})
-
-# 3. Indexação
-for colc in colunas_categoricas:
+    df = df.na.fill({colc: "desconhecido"})
     indexer = StringIndexer(inputCol=colc, outputCol=colc + "_idx", handleInvalid="keep")
     df = indexer.fit(df).transform(df)
 
-# 4. Vetorização
+# ===============================
+# 🔄 Vetorização
+# ===============================
 feature_cols = colunas_numericas + [col + "_idx" for col in colunas_categoricas[:-1]]
 assembler = VectorAssembler(inputCols=feature_cols, outputCol="features")
 df = assembler.transform(df)
 
-# 5. Treinamento do modelo
+# ===============================
+# 🌳 Random Forest Classifier
+# ===============================
 rf = RandomForestClassifier(labelCol="risco_evasao_idx", featuresCol="features")
 model = rf.fit(df)
 predictions = model.transform(df)
 
-# 6. Avaliação
+# ===============================
+# 📊 Avaliação
+# ===============================
 evaluator = MulticlassClassificationEvaluator(
     labelCol="risco_evasao_idx", predictionCol="prediction", metricName="accuracy"
 )
 accuracy = evaluator.evaluate(predictions)
-print(f"Acurácia: {accuracy:.4f}")
+print(f"Acurácia do modelo: {accuracy:.4f}")
 
-#GRAFICO HADOOP 2 TESTE AINDA
-# Converter para Pandas para visualização
+# ===============================
+# 📈 Visualizações
+# ===============================
 preds_pd = predictions.select("risco_evasao_idx", "prediction").toPandas()
 
-# Gráfico 1: Real vs Predito
-plt.figure(5, figsize=(10, 6))
-sns.histplot(preds_pd, x="risco_evasao_idx", color="blue", label="Real", alpha=0.6, bins=10)
-sns.histplot(preds_pd, x="prediction", color="red", label="Predito", alpha=0.4, bins=10)
-plt.title("Distribuição Real vs Predita do Risco de Evasão")
-plt.xlabel("Classe (risco_evasao_idx)")
-plt.ylabel("Frequência")
+# Gráfico 1: Distribuição Real vs Predito
+plt.figure(1, figsize=(10, 5))
+sns.countplot(data=preds_pd, x="risco_evasao_idx", color="blue", label="Real", alpha=0.6)
+sns.countplot(data=preds_pd, x="prediction", color="red", label="Predito", alpha=0.6)
+plt.title("Distribuição das Classes - Real vs Predita")
+plt.xlabel("Classe (risco_evasao)")
+plt.ylabel("Contagem")
 plt.legend()
 plt.grid(True)
 
-# Gráfico 2: Matriz de confusão
-from sklearn.metrics import confusion_matrix
-
+# Gráfico 2: Matriz de Confusão
 conf_mat = confusion_matrix(preds_pd["risco_evasao_idx"], preds_pd["prediction"])
-plt.figure(6, figsize=(8, 6))
-sns.heatmap(conf_mat, annot=True, fmt='d', cmap="YlGnBu")
+plt.figure(2, figsize=(8, 6))
+sns.heatmap(conf_mat, annot=True, fmt="d", cmap="Blues")
 plt.title("Matriz de Confusão")
 plt.xlabel("Predito")
 plt.ylabel("Real")
+
+plt.show()
+
+# ===============================
+# 📄 Informações adicionais
+# ===============================
+print("\nInformações do DataFrame Spark:")
+print("Colunas disponíveis:", df.columns)
+print("Contagem de linhas:", df.count())
+print("Contagem de valores nulos por coluna:")
+df.select([col(c).isNull().cast("int").alias(c) for c in df.columns]) \
+  .agg(*[sum(col(c)).alias(c) for c in df.columns]).show()
+
+print("Distribuição de classes (risco_evasao):")
+df.groupBy("risco_evasao").count().show()
+
+print("Distribuição de classes (risco_evasao_idx):")
+df.groupBy("risco_evasao_idx").count().show()
+print("Distribuição de classes (risco_evasao_idx):")
+df.groupBy("risco_evasao_idx").count().show()
+print("Distribuição de classes (risco_evasao):")
+df.groupBy("risco_evasao").count().show()
+
+# ===============================
+# 📈 Visualizações com Pandas, Seaborn e Matplotlib
+# ===============================
+preds_pd = predictions.select("risco_evasao_idx", "prediction").toPandas()
+
+# Gráfico 1: Real vs Predito
+plt.figure(1, figsize=(10, 5))
+sns.countplot(data=preds_pd, x="risco_evasao_idx", color="blue", label="Real", alpha=0.6)
+sns.countplot(data=preds_pd, x="prediction", color="red", label="Predito", alpha=0.6)
+plt.title("Distribuição das Classes - Real vs Predita")
+plt.xlabel("Classe (risco_evasao_idx)")
+plt.ylabel("Contagem")
+plt.legend()
+plt.grid(True)
+
+# Gráfico 2: Matriz de Confusão
+conf_mat = confusion_matrix(preds_pd["risco_evasao_idx"], preds_pd["prediction"])
+plt.figure(2, figsize=(8, 6))
+sns.heatmap(conf_mat, annot=True, fmt="d", cmap="Blues")
+plt.title("Matriz de Confusão")
+plt.xlabel("Predito")
+plt.ylabel("Real")
+
+plt.show()
+# Gráfico 3: Acurácia do Modelo 
+labels = ['Acurácia', 'Erro']
+sizes = [accuracy, 1 - accuracy]
+plt.figure(3, figsize=(6, 6))
+plt.pie(sizes, labels=labels, autopct='%1.1f%%', startangle=90, colors=['#4CAF50', '#F44336'])
+plt.title('Acurácia do Modelo de Evasão')
+plt.show()
 
 # ===============================
 # 📊 Converter para Pandas e gerar gráfico
