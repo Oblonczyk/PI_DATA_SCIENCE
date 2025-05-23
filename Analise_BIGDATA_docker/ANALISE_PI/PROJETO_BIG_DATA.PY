@@ -49,6 +49,18 @@ from pyspark.ml.classification import DecisionTreeClassifier
 from pyspark.ml.clustering import KMeans as SparkKMeans
 from pyspark.ml.evaluation import MulticlassClassificationEvaluator
 
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+from sqlalchemy import create_engine
+import pandas as pd
+
+from pyspark.sql import SparkSession
+from pyspark.sql.functions import col
+from pyspark.ml.feature import StringIndexer, VectorAssembler
+from pyspark.ml.evaluation import MulticlassClassificationEvaluator
+from sklearn.metrics import confusion_matrix
+
 # 📥 Carregar Base de Dados
 #df = pd.read_csv(r"C:/Users/bruno/Downloads/PI_DATA_SCIENCE/Analise_BIGDATA_docker/ANALISE_PI/alunos_com_erros.csv")
 
@@ -59,9 +71,6 @@ from pyspark.ml.evaluation import MulticlassClassificationEvaluator
 
 # ================================
 # 📊 Visualização Inicial com mysql
-
-from sqlalchemy import create_engine
-import pandas as pd
 
 # Configuração da conexão
 usuario = 'root'
@@ -282,7 +291,7 @@ y_pred = model.predict(X_test)
 print("📋 Relatório Final (5 Aulas):")
 print(classification_report(y_test, y_pred))
 ConfusionMatrixDisplay.from_predictions(y_test, y_pred)
-plt.figure(1, figsize=(12,6))
+plt.figure(figsize=(12,6))
 plt.title("Matriz de Confusão - Modelo com 5 Aulas")
 
 from pyspark.sql import SparkSession
@@ -290,10 +299,6 @@ from pyspark.sql.functions import col
 from pyspark.ml.feature import StringIndexer, VectorAssembler
 from pyspark.ml.classification import RandomForestClassifier
 from pyspark.ml.evaluation import MulticlassClassificationEvaluator
-import matplotlib.pyplot as plt
-import seaborn as sns
-import pandas as pd
-import numpy as np
 from sklearn.metrics import confusion_matrix
 
 # ===============================
@@ -302,13 +307,13 @@ from sklearn.metrics import confusion_matrix
 spark = SparkSession.builder \
     .appName("PrevisaoRiscoEvasao") \
     .config("spark.hadoop.fs.defaultFS", "hdfs://localhost:9000") \
-    .config("spark.jars", "C:/caminho/mysql-connector-java-8.0.33.jar") \
+    .config("spark.jars", "file:///C:/pyspark_drivers/mysql-connector-j-9.3.0/mysql-connector-j-9.3.0.jar") \
     .getOrCreate()
 
 # ===============================
 # 📥 Leitura dos dados via JDBC
 # ===============================
-df = spark.read.format("jdbc").options(
+df_spark = spark.read.format("jdbc").options(
     url="jdbc:mysql://localhost:3306/faculdade",
     driver="com.mysql.cj.jdbc.Driver",
     dbtable="alunos",
@@ -316,8 +321,8 @@ df = spark.read.format("jdbc").options(
     password=""
 ).load()
 
-df.printSchema()
-df.show(5)
+df_spark.printSchema()
+df_spark.show(5)
 
 # ===============================
 # 🧼 Limpeza e conversão
@@ -329,26 +334,27 @@ colunas_categoricas = ["sexo", "trabalha", "acompanhamento_medico", "tem_filho",
                        "desempenho_3", "desempenho_4", "desempenho_5", "risco_evasao"]
 
 for coln in colunas_numericas:
-    df = df.withColumn(coln, col(coln).cast("double")).na.fill({coln: -1})
+    df_spark = df_spark.withColumn(coln, col(coln).cast("double"))
+    df_spark = df_spark.na.fill({coln: -1})
 
 for colc in colunas_categoricas:
-    df = df.na.fill({colc: "desconhecido"})
+    df_spark = df_spark.na.fill({colc: "desconhecido"})
     indexer = StringIndexer(inputCol=colc, outputCol=colc + "_idx", handleInvalid="keep")
-    df = indexer.fit(df).transform(df)
+    df_spark = indexer.fit(df_spark).transform(df_spark)
 
 # ===============================
 # 🔄 Vetorização
 # ===============================
 feature_cols = colunas_numericas + [col + "_idx" for col in colunas_categoricas[:-1]]
 assembler = VectorAssembler(inputCols=feature_cols, outputCol="features")
-df = assembler.transform(df)
+df_spark = assembler.transform(df_spark)
 
 # ===============================
 # 🌳 Random Forest Classifier
 # ===============================
 rf = RandomForestClassifier(labelCol="risco_evasao_idx", featuresCol="features")
-model = rf.fit(df)
-predictions = model.transform(df)
+model = rf.fit(df_spark)
+predictions = model.transform(df_spark)
 
 # ===============================
 # 📊 Avaliação
@@ -362,7 +368,13 @@ print(f"Acurácia do modelo: {accuracy:.4f}")
 # ===============================
 # 📈 Visualizações
 # ===============================
-preds_pd = predictions.select("risco_evasao_idx", "prediction").toPandas()
+# Coleta os dados manualmente
+data = predictions.select("risco_evasao_idx", "prediction").collect()
+
+# Converte para pandas
+preds_pd = pd.DataFrame(data, columns=["risco_evasao_idx", "prediction"])
+
+
 
 # Gráfico 1: Distribuição Real vs Predito
 plt.figure(1, figsize=(10, 5))
@@ -387,30 +399,30 @@ plt.show()
 # ===============================
 # 📄 Informações adicionais
 # ===============================
-print("\nInformações do DataFrame Spark:")
-print("Colunas disponíveis:", df.columns)
-print("Contagem de linhas:", df.count())
-print("Contagem de valores nulos por coluna:")
-df.select([col(c).isNull().cast("int").alias(c) for c in df.columns]) \
-  .agg(*[sum(col(c)).alias(c) for c in df.columns]).show()
+# print("\nInformações do DataFrame Spark:")
+# print("Colunas disponíveis:", df_spark.columns)
+# print("Contagem de linhas:", df_spark.count())
 
-print("Distribuição de classes (risco_evasao):")
-df.groupBy("risco_evasao").count().show()
+# print("Contagem de valores nulos por coluna:")
+# df_spark.select([col(c).isNull().cast("int").alias(c) for c in df_spark.columns]) \
+#     .agg(*[sum(col(c)).alias(c) for c in df_spark.columns]).show()
 
-print("Distribuição de classes (risco_evasao_idx):")
-df.groupBy("risco_evasao_idx").count().show()
-print("Distribuição de classes (risco_evasao_idx):")
-df.groupBy("risco_evasao_idx").count().show()
-print("Distribuição de classes (risco_evasao):")
-df.groupBy("risco_evasao").count().show()
+# print("Distribuição de classes (risco_evasao):")
+# df_spark.groupBy("risco_evasao").count().show()
 
+# print("Distribuição de classes (risco_evasao_idx):")
+# df_spark.groupBy("risco_evasao_idx").count().show()
 # ===============================
 # 📈 Visualizações com Pandas, Seaborn e Matplotlib
 # ===============================
-preds_pd = predictions.select("risco_evasao_idx", "prediction").toPandas()
+# Coleta os dados manualmente
+data = predictions.select("risco_evasao_idx", "prediction").collect()
+
+# Converte para pandas
+preds_pd = pd.DataFrame(data, columns=["risco_evasao_idx", "prediction"])
 
 # Gráfico 1: Real vs Predito
-plt.figure(1, figsize=(10, 5))
+plt.figure(figsize=(10, 5))
 sns.countplot(data=preds_pd, x="risco_evasao_idx", color="blue", label="Real", alpha=0.6)
 sns.countplot(data=preds_pd, x="prediction", color="red", label="Predito", alpha=0.6)
 plt.title("Distribuição das Classes - Real vs Predita")
@@ -426,8 +438,8 @@ sns.heatmap(conf_mat, annot=True, fmt="d", cmap="Blues")
 plt.title("Matriz de Confusão")
 plt.xlabel("Predito")
 plt.ylabel("Real")
-
 plt.show()
+
 # Gráfico 3: Acurácia do Modelo 
 labels = ['Acurácia', 'Erro']
 sizes = [accuracy, 1 - accuracy]
@@ -441,7 +453,8 @@ plt.show()
 # ===============================
 
 # Converter para Pandas
-df_pandas = df_spark.toPandas()
+data = df_spark.collect()
+df_pandas = pd.DataFrame([row.asDict() for row in data])
 
 # Tratar valores nulos
 df_pandas['risco_evasao'] = df_pandas['risco_evasao'].fillna('Desconhecido')
@@ -453,9 +466,6 @@ plt.xlabel('Risco de Evasão')
 plt.ylabel('Quantidade')
 plt.xticks(rotation=45)
 plt.tight_layout()
-
-import matplotlib.pyplot as plt
-import seaborn as sns
 
 plt.figure(8, figsize=(8,6))
 sns.countplot(x='risco_evasao', data=df_model, palette='viridis')
@@ -841,3 +851,4 @@ if 'risco_predito' in df_model.columns and 'risco_evasao' in df_model.columns:
 else:
     print("As colunas 'risco_predito' e/ou 'risco_evasao' não estão no DataFrame.")
 
+#FIM DE CODIGO 
