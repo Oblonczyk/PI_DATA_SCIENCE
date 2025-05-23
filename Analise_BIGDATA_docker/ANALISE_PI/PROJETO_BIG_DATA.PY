@@ -288,12 +288,6 @@ model = ImbPipeline(steps=[
 model.fit(X_train, y_train)
 y_pred = model.predict(X_test)
 
-print("📋 Relatório Final (5 Aulas):")
-print(classification_report(y_test, y_pred))
-ConfusionMatrixDisplay.from_predictions(y_test, y_pred)
-plt.figure(figsize=(12,6))
-plt.title("Matriz de Confusão - Modelo com 5 Aulas")
-
 from pyspark.sql import SparkSession
 from pyspark.sql.functions import col
 from pyspark.ml.feature import StringIndexer, VectorAssembler
@@ -304,6 +298,7 @@ from sklearn.metrics import confusion_matrix
 # ===============================
 # 🔧 Iniciar sessão Spark (com Hadoop se quiser)
 # ===============================
+
 spark = SparkSession.builder \
     .appName("PrevisaoRiscoEvasao") \
     .config("spark.hadoop.fs.defaultFS", "hdfs://localhost:9000") \
@@ -346,13 +341,13 @@ for colc in colunas_categoricas:
 # 🔄 Vetorização
 # ===============================
 feature_cols = colunas_numericas + [col + "_idx" for col in colunas_categoricas[:-1]]
-assembler = VectorAssembler(inputCols=feature_cols, outputCol="features")
+assembler = VectorAssembler(inputCols=feature_cols, outputCol="features_vec")
 df_spark = assembler.transform(df_spark)
 
 # ===============================
 # 🌳 Random Forest Classifier
 # ===============================
-rf = RandomForestClassifier(labelCol="risco_evasao_idx", featuresCol="features")
+rf = RandomForestClassifier(labelCol="risco_evasao_idx", featuresCol="features_vec")
 model = rf.fit(df_spark)
 predictions = model.transform(df_spark)
 
@@ -373,28 +368,6 @@ data = predictions.select("risco_evasao_idx", "prediction").collect()
 
 # Converte para pandas
 preds_pd = pd.DataFrame(data, columns=["risco_evasao_idx", "prediction"])
-
-
-
-# Gráfico 1: Distribuição Real vs Predito
-plt.figure(1, figsize=(10, 5))
-sns.countplot(data=preds_pd, x="risco_evasao_idx", color="blue", label="Real", alpha=0.6)
-sns.countplot(data=preds_pd, x="prediction", color="red", label="Predito", alpha=0.6)
-plt.title("Distribuição das Classes - Real vs Predita")
-plt.xlabel("Classe (risco_evasao)")
-plt.ylabel("Contagem")
-plt.legend()
-plt.grid(True)
-
-# Gráfico 2: Matriz de Confusão
-conf_mat = confusion_matrix(preds_pd["risco_evasao_idx"], preds_pd["prediction"])
-plt.figure(2, figsize=(8, 6))
-sns.heatmap(conf_mat, annot=True, fmt="d", cmap="Blues")
-plt.title("Matriz de Confusão")
-plt.xlabel("Predito")
-plt.ylabel("Real")
-
-plt.show()
 
 # ===============================
 # 📄 Informações adicionais
@@ -421,33 +394,6 @@ data = predictions.select("risco_evasao_idx", "prediction").collect()
 # Converte para pandas
 preds_pd = pd.DataFrame(data, columns=["risco_evasao_idx", "prediction"])
 
-# Gráfico 1: Real vs Predito
-plt.figure(figsize=(10, 5))
-sns.countplot(data=preds_pd, x="risco_evasao_idx", color="blue", label="Real", alpha=0.6)
-sns.countplot(data=preds_pd, x="prediction", color="red", label="Predito", alpha=0.6)
-plt.title("Distribuição das Classes - Real vs Predita")
-plt.xlabel("Classe (risco_evasao_idx)")
-plt.ylabel("Contagem")
-plt.legend()
-plt.grid(True)
-
-# Gráfico 2: Matriz de Confusão
-conf_mat = confusion_matrix(preds_pd["risco_evasao_idx"], preds_pd["prediction"])
-plt.figure(2, figsize=(8, 6))
-sns.heatmap(conf_mat, annot=True, fmt="d", cmap="Blues")
-plt.title("Matriz de Confusão")
-plt.xlabel("Predito")
-plt.ylabel("Real")
-plt.show()
-
-# Gráfico 3: Acurácia do Modelo 
-labels = ['Acurácia', 'Erro']
-sizes = [accuracy, 1 - accuracy]
-plt.figure(3, figsize=(6, 6))
-plt.pie(sizes, labels=labels, autopct='%1.1f%%', startangle=90, colors=['#4CAF50', '#F44336'])
-plt.title('Acurácia do Modelo de Evasão')
-plt.show()
-
 # ===============================
 # 📊 Converter para Pandas e gerar gráfico
 # ===============================
@@ -458,22 +404,6 @@ df_pandas = pd.DataFrame([row.asDict() for row in data])
 
 # Tratar valores nulos
 df_pandas['risco_evasao'] = df_pandas['risco_evasao'].fillna('Desconhecido')
-
-plt.figure(7, figsize=(8, 5))
-sns.countplot(data=df_pandas, x='risco_evasao', palette='viridis')
-plt.title('Distribuição de Risco de Evasão (Dados via HDFS)')
-plt.xlabel('Risco de Evasão')
-plt.ylabel('Quantidade')
-plt.xticks(rotation=45)
-plt.tight_layout()
-
-plt.figure(8, figsize=(8,6))
-sns.countplot(x='risco_evasao', data=df_model, palette='viridis')
-plt.title('Previsões de Risco de Evasão pelo Modelo')
-plt.xlabel('Risco Predito')
-plt.ylabel('Quantidade')
-plt.xticks(rotation=45)
-plt.tight_layout()
 
 # ===============================
 # 📋 Previsões Spark para análise detalhada
@@ -503,17 +433,6 @@ print(df_model.head())
 # Filtrar alunos de alto risco
 alunos_alto_risco = df_model[df_model['risco_predito'] == 'Alto']
 print(alunos_alto_risco[['nome_aluno', 'desempenho_1', 'faltas_1', 'notas_1']].head())
-
-# Gráfico dos 30 primeiros alunos e seu risco predito
-plt.figure(9, figsize=(12,6))
-sns.countplot(data=df_model.head(30), x='nome_aluno', hue='risco_predito', palette='Set2')
-plt.xticks(rotation=90)
-plt.title("Risco predito dos 30 primeiros alunos")
-plt.xlabel("Nome do Aluno")
-plt.ylabel("Contagem")
-plt.legend(title='Risco Predito')
-plt.tight_layout()
-plt.show()
 
 # Gráfico percentual dos riscos preditos
 # Calcular os percentuais
@@ -563,39 +482,46 @@ y = df_model['risco_evasao']
 X_encoded = pd.get_dummies(X, drop_first=True)  # codifica as categorias
 
 # Treina modelo RandomForest
-rf = RandomForestClassifier(random_state=42)
-rf.fit(X_encoded, y)
+assembler = VectorAssembler(inputCols=feature_cols, outputCol="features")
+df_spark = assembler.transform(df_spark)
+
+rf = RandomForestClassifier(labelCol="risco_evasao_idx", featuresCol="features", numTrees=100)
+model = rf.fit(df_spark)
 
 # Extrai importância das features
-importances = rf.feature_importances_
+importances = model.featureImportances.toArray()
 
 # Nomes das features após o get_dummies
-features_encoded_names = X_encoded.columns.tolist()
+feature_names = assembler.getInputCols()
 
-# Organizar para o gráfico
-indices = np.argsort(importances)[::-1]
+# 4. Organizar para visualização
 df_imp = pd.DataFrame({
-    'Variável': [features_encoded_names[i] for i in indices],
-    'Importância': importances[indices]
-})
+    'Variável': feature_names,
+    'Importância': importances
+}).sort_values(by='Importância', ascending=False)
 
-# Gráfico interativo
+# 5. Gráfico interativo
 fig = px.bar(
-    df_imp.head(10),  # mostra top 30 para não ficar poluído
+    df_imp.head(10),
     x='Importância',
     y='Variável',
     orientation='h',
     color='Importância',
     color_continuous_scale='Viridis',
-    title='Importância das Variáveis para Predição do Risco de Evasão',
-    labels={'Importância':'Importância da Feature', 'Variável':'Feature'}
+    title='Importância das Variáveis para Predição do Risco de Evasão (PySpark)',
+    labels={'Importância': 'Importância da Feature', 'Variável': 'Feature'}
 )
-
 fig.update_layout(yaxis=dict(categoryorder='total ascending'))
 fig.show()
 
 # Copiar e preparar dados, garantir que coluna de evasão está presente e limpa
 df_plot = df.copy().dropna(subset=['renda_familiar', 'risco_evasao'])
+
+# Converter para numérico, forçando erros para NaN
+df_plot['renda_familiar'] = pd.to_numeric(df_plot['renda_familiar'], errors='coerce')
+
+# Remover valores nulos resultantes da conversão
+df_plot = df_plot.dropna(subset=['renda_familiar'])
 
 # Criar categorias econômicas baseadas na renda familiar
 df_plot['classe_economica'] = pd.cut(
@@ -740,6 +666,7 @@ fig.show()
 # 📊 PCA + RandomForest: Visualização interativa
 # ===============================
 
+# Gráfico interativo
 df_pca = pd.DataFrame(X_pca, columns=['PC1', 'PC2'])
 df_pca['Cluster'] = clusters
 df_pca['Risco_Predito'] = df_model['risco_predito']
@@ -752,6 +679,14 @@ fig = px.scatter(
 fig.show()
 
 # --- Exemplo: definir motivo de evasão com base em regras simples ---
+# Forçar para numérico (transforma erros em NaN)
+df_model['faltas_1'] = pd.to_numeric(df_model['faltas_1'], errors='coerce')
+df_model['desempenho_1'] = pd.to_numeric(df_model['desempenho_1'], errors='coerce')
+df_model['renda_familiar'] = pd.to_numeric(df_model['renda_familiar'], errors='coerce')
+
+# Remover linhas com NaN em alguma dessas colunas
+df_model = df_model.dropna(subset=['faltas_1', 'desempenho_1', 'renda_familiar'])
+
 # Se tiver a coluna 'motivo_evasao' use ela, senão a gente simula baseada nas variáveis
 def definir_motivo(row):
     if row['faltas_1'] > 10:
@@ -791,11 +726,92 @@ fig.update_layout(
 
 fig.show()
 
+
+#Graficos Estáticos
+
+# Gráfico 1: Relatório Final (5 aulas)
+print("📋 Relatório Final (5 Aulas):")
+print(classification_report(y_test, y_pred))
+ConfusionMatrixDisplay.from_predictions(y_test, y_pred)
+plt.figure(1, figsize=(12,6))
+plt.title("Matriz de Confusão - Modelo com 5 Aulas")
+
+# Gráfico 2: Distribuição Real vs Predito
+plt.figure(2, figsize=(10, 5))
+sns.countplot(data=preds_pd, x="risco_evasao_idx", color="blue", label="Real", alpha=0.6)
+sns.countplot(data=preds_pd, x="prediction", color="red", label="Predito", alpha=0.6)
+plt.title("Distribuição das Classes - Real vs Predita")
+plt.xlabel("Classe (risco_evasao)")
+plt.ylabel("Contagem")
+plt.legend()
+plt.grid(True)
+
+# Gráfico 3: Matriz de Confusão
+conf_mat = confusion_matrix(preds_pd["risco_evasao_idx"], preds_pd["prediction"])
+plt.figure(3, figsize=(8, 6))
+sns.heatmap(conf_mat, annot=True, fmt="d", cmap="Blues")
+plt.title("Matriz de Confusão")
+plt.xlabel("Predito")
+plt.ylabel("Real")
+
+# Gráfico 4: Real vs Predito
+plt.figure(4, figsize=(10, 5))
+sns.countplot(data=preds_pd, x="risco_evasao_idx", color="blue", label="Real", alpha=0.6)
+sns.countplot(data=preds_pd, x="prediction", color="red", label="Predito", alpha=0.6)
+plt.title("Distribuição das Classes - Real vs Predita")
+plt.xlabel("Classe (risco_evasao_idx)")
+plt.ylabel("Contagem")
+plt.legend()
+plt.grid(True)
+
+# Gráfico 5: Matriz de Confusão
+conf_mat = confusion_matrix(preds_pd["risco_evasao_idx"], preds_pd["prediction"])
+plt.figure(5, figsize=(8, 6))
+sns.heatmap(conf_mat, annot=True, fmt="d", cmap="Blues")
+plt.title("Matriz de Confusão")
+plt.xlabel("Predito")
+plt.ylabel("Real")
+
+# Gráfico 6: Acurácia do Modelo 
+labels = ['Acurácia', 'Erro']
+sizes = [accuracy, 1 - accuracy]
+plt.figure(6, figsize=(6, 6))
+plt.pie(sizes, labels=labels, autopct='%1.1f%%', startangle=90, colors=['#4CAF50', '#F44336'])
+plt.title('Acurácia do Modelo de Evasão')
+
+# Gráfico 7: Distribuição de Risco de Evasão (Dados via HDFS)
+plt.figure(7, figsize=(8, 5))
+sns.countplot(data=df_pandas, x='risco_evasao', palette='viridis')
+plt.title('Distribuição de Risco de Evasão (Dados via HDFS)')
+plt.xlabel('Risco de Evasão')
+plt.ylabel('Quantidade')
+plt.xticks(rotation=45)
+plt.tight_layout()
+
+# Gráfico 8: Previsões de Risco de Evasão pelo Modelo
+plt.figure(8, figsize=(8,6))
+sns.countplot(x='risco_evasao', data=df_model, palette='viridis')
+plt.title('Previsões de Risco de Evasão pelo Modelo')
+plt.xlabel('Risco Predito')
+plt.ylabel('Quantidade')
+plt.xticks(rotation=45)
+plt.tight_layout()
+
+# Gráfico 9: 30 primeiros alunos e seu risco predito
+plt.figure(9, figsize=(12,6))
+sns.countplot(data=df_model.head(30), x='nome_aluno', hue='risco_predito', palette='Set2')
+plt.xticks(rotation=90)
+plt.title("Risco predito dos 30 primeiros alunos")
+plt.xlabel("Nome do Aluno")
+plt.ylabel("Contagem")
+plt.legend(title='Risco Predito')
+plt.tight_layout()
+
+# Gráfico 10: Top 5 cursos com mais risco de evasão
 # 1. Preparar os dados - contar alunos com risco de evasão por curso
 risco_por_curso = df[df['risco_evasao'] == 1]['curso'].value_counts().nlargest(5)
 
 # 2. Configurar o estilo do gráfico
-plt.figure(10, figsize=(10, 6))
 sns.set_style("whitegrid")
 paleta = sns.color_palette("Reds_r", len(risco_por_curso))
 
@@ -809,7 +825,7 @@ ax = sns.barplot(
 )
 
 # 4. Adicionar rótulos e títulos
-plt.figure(11, figsize=(8,6))
+plt.figure(10, figsize=(8,6))
 plt.title('Top 5 Cursos com Mais Alunos em Risco de Evasão', fontsize=16, pad=20)
 plt.xlabel('Número de Alunos em Risco', fontsize=12)
 plt.ylabel('Curso', fontsize=12)
@@ -826,29 +842,69 @@ for i, (curso, total) in enumerate(total_por_curso.items()):
             va='center', fontsize=10, color='blue')
 
 # 7. Ajustar layout e mostrar
-plt.figure(12, figsize=(12,6))
 plt.xlim(0, risco_por_curso.max() * 1.15)
 plt.tight_layout()
+
+# Gráfico 11: Top 5 cursos com mais risco de evasão
+plt.figure(11, figsize=(8,5))
+bars = plt.bar(df_risco_counts['risco_predito'], df_risco_counts['percentual'], color='skyblue')
+
+for bar in bars:
+    height = bar.get_height()
+    plt.text(bar.get_x() + bar.get_width()/2, height + 1, f'{height:.2f}%', ha='center')
+
+plt.title('Distribuição percentual dos riscos preditos')
+plt.xlabel('Risco Predito')
+plt.ylabel('Percentual (%)')
+plt.grid(axis='y', linestyle='--', alpha=0.7)
+plt.tight_layout()
+
+# Gráfico 12: Top 10 Variáveis para Predição do Risco de Evasão
+top_imp = df_imp.head(10)
+
+plt.figure(12, figsize=(8,6))
+plt.barh(top_imp['Variável'], top_imp['Importância'], color='mediumseagreen')
+plt.xlabel('Importância')
+plt.title('Top 10 Variáveis para Predição do Risco de Evasão')
+plt.gca().invert_yaxis()
+plt.grid(axis='x', linestyle='--', alpha=0.7)
+plt.tight_layout()
+
+# Gráfico 13: Alunos por Risco de Evasão (PCA + RandomForest)
+import seaborn as sns
+
+plt.figure(13, figsize=(8,6))
+sns.scatterplot(data=df_pca, x='PC1', y='PC2', hue='Risco_Predito', palette='Set2', s=100, edgecolor='black')
+plt.title('Alunos por Risco de Evasão (PCA + RandomForest)')
+plt.grid(True, linestyle='--', alpha=0.6)
+plt.tight_layout()
+
+# Gráfico 14: Distribuição dos Motivos de Evasão por Categoria de Risco
+plt.figure(14, figsize=(10,6))
+sns.barplot(data=df_motivos, x='motivo_evasao', y='quantidade', hue='risco_predito', palette='Set2')
+plt.title('Distribuição dos Motivos de Evasão por Categoria de Risco')
+plt.xlabel('Motivo de Evasão')
+plt.ylabel('Número de Alunos')
+plt.grid(axis='y', linestyle='--', alpha=0.5)
+plt.legend(title='Risco Predito')
+plt.tight_layout()
+
+# Gráfico 15: Quantidade de Alunos Evadidos por Classe Econômica
+plt.figure(15, figsize=(7,5))
+colors = ['red', 'orange', 'green']
+bars = plt.bar(df_contagem['classe_economica'], df_contagem['quantidade_evadidos'], color=colors)
+
+for bar in bars:
+    height = bar.get_height()
+    plt.text(bar.get_x() + bar.get_width()/2, height + 0.5, str(int(height)), ha='center')
+
+plt.title('Quantidade de Alunos Evadidos por Classe Econômica')
+plt.xlabel('Classe Econômica')
+plt.ylabel('Quantidade')
+plt.grid(axis='y', linestyle='--', alpha=0.5)
+plt.tight_layout()
+
 plt.show()
 
-
-# Verifica se a coluna existe
-if 'risco_predito' in df_model.columns and 'risco_evasao' in df_model.columns:
-    # Tabela cruzada com percentual por linha (risco_predito)
-    ct = pd.crosstab(df_model['risco_predito'], df_model['risco_evasao'], normalize='index') * 100
-
-    # Ordena os índices se desejar (opcional)
-    ct = ct.sort_index()
-
-    plt.figure(12, figsize=(8,6))
-    sns.heatmap(ct, annot=True, fmt=".1f", cmap="YlGnBu", cbar_kws={'label': 'Percentual (%)'})
-
-    plt.title("Percentual de Evasão Real por Categoria de Risco Predito")
-    plt.ylabel("Risco Predito")
-    plt.xlabel("Evasão Real")
-    plt.tight_layout()
-    plt.show()
-else:
-    print("As colunas 'risco_predito' e/ou 'risco_evasao' não estão no DataFrame.")
 
 #FIM DE CODIGO 
