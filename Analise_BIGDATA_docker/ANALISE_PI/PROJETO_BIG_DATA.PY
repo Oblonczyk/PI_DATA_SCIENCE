@@ -302,7 +302,7 @@ from sklearn.metrics import confusion_matrix
 spark = SparkSession.builder \
     .appName("PrevisaoRiscoEvasao") \
     .config("spark.hadoop.fs.defaultFS", "hdfs://localhost:9000") \
-    .config("spark.jars", "file:///C:/pyspark_drivers/mysql-connector-j-9.3.0/mysql-connector-j-9.3.0.jar") \
+    .config("spark.jars", "file:///C:/pyspark_drivers/mysql-connector-j-9.3.0.jar") \
     .getOrCreate()
 
 # ===============================
@@ -369,22 +369,6 @@ data = predictions.select("risco_evasao_idx", "prediction").collect()
 # Converte para pandas
 preds_pd = pd.DataFrame(data, columns=["risco_evasao_idx", "prediction"])
 
-# ===============================
-# 📄 Informações adicionais
-# ===============================
-# print("\nInformações do DataFrame Spark:")
-# print("Colunas disponíveis:", df_spark.columns)
-# print("Contagem de linhas:", df_spark.count())
-
-# print("Contagem de valores nulos por coluna:")
-# df_spark.select([col(c).isNull().cast("int").alias(c) for c in df_spark.columns]) \
-#     .agg(*[sum(col(c)).alias(c) for c in df_spark.columns]).show()
-
-# print("Distribuição de classes (risco_evasao):")
-# df_spark.groupBy("risco_evasao").count().show()
-
-# print("Distribuição de classes (risco_evasao_idx):")
-# df_spark.groupBy("risco_evasao_idx").count().show()
 # ===============================
 # 📈 Visualizações com Pandas, Seaborn e Matplotlib
 # ===============================
@@ -463,16 +447,26 @@ fig.update_traces(texttemplate='%{text:.2f}%', textposition='outside')
 
 fig.show()
 
-# Variáveis (features) que vai usar para treinar (sem identificadores e target)
+# ===============================
+# ✅ Organização das Features
+# ===============================
+
+# Criando listas dinâmicas para os campos relacionados às 5 aulas
+aulas = [f"aula_{i}" for i in range(1, 6)]
+professores = [f"professor_{i}" for i in range(1, 6)]
+notas = [f"notas_{i}" for i in range(1, 6)]
+faltas = [f"faltas_{i}" for i in range(1, 6)]
+desempenhos = [f"desempenho_{i}" for i in range(1, 6)]
+
+# Juntando todas as features
 features_all = [
-    "curso", "status", "turma", "sexo", "idade", "trabalha", "renda_familiar", "acompanhamento_medico",
-    "tem_filho", "estado_civil", "semestre", "bimestre",
-    "aula_1", "professor_1", "notas_1", "faltas_1", "desempenho_1",
-    "aula_2", "professor_2", "notas_2", "faltas_2", "desempenho_2",
-    "aula_3", "professor_3", "notas_3", "faltas_3", "desempenho_3",
-    "aula_4", "professor_4", "notas_4", "faltas_4", "desempenho_4",
-    "aula_5", "professor_5", "notas_5", "faltas_5", "desempenho_5"
-]
+    "curso", "status", "turma", "sexo", "idade", "trabalha", "renda_familiar",
+    "acompanhamento_medico", "tem_filho", "estado_civil", "semestre", "bimestre"
+] + aulas + professores + notas + faltas + desempenhos
+
+for nota in notas:
+    print(df[nota].describe())
+
 
 # Preprocessar seu dataframe (exemplo rápido, ajuste conforme seu caso):
 X = df_model[features_all].copy()
@@ -928,5 +922,7 @@ plt.xticks(rotation=45)
 plt.grid(axis='y', linestyle='--', alpha=0.6)
 plt.tight_layout()
 
+# Exibir todos os gráficos
 plt.show()
+
 #FIM DE CODIGO 
