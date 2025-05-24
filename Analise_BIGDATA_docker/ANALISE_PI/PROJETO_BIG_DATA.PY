@@ -754,99 +754,15 @@ plt.title("Matriz de Confusão")
 plt.xlabel("Predito")
 plt.ylabel("Real")
 
-# Gráfico 4: Real vs Predito
-plt.figure(4, figsize=(10, 5))
-sns.countplot(data=preds_pd, x="risco_evasao_idx", color="blue", label="Real", alpha=0.6)
-sns.countplot(data=preds_pd, x="prediction", color="red", label="Predito", alpha=0.6)
-plt.title("Distribuição das Classes - Real vs Predita")
-plt.xlabel("Classe (risco_evasao_idx)")
-plt.ylabel("Contagem")
-plt.legend()
-plt.grid(True)
-
-# Gráfico 5: Matriz de Confusão
-conf_mat = confusion_matrix(preds_pd["risco_evasao_idx"], preds_pd["prediction"])
-plt.figure(5, figsize=(8, 6))
-sns.heatmap(conf_mat, annot=True, fmt="d", cmap="Blues")
-plt.title("Matriz de Confusão")
-plt.xlabel("Predito")
-plt.ylabel("Real")
-
-# Gráfico 6: Acurácia do Modelo 
+# Gráfico 4: Acurácia do Modelo 
 labels = ['Acurácia', 'Erro']
 sizes = [accuracy, 1 - accuracy]
-plt.figure(6, figsize=(6, 6))
+plt.figure(4, figsize=(6, 6))
 plt.pie(sizes, labels=labels, autopct='%1.1f%%', startangle=90, colors=['#4CAF50', '#F44336'])
 plt.title('Acurácia do Modelo de Evasão')
 
-# Gráfico 7: Distribuição de Risco de Evasão (Dados via HDFS)
-plt.figure(7, figsize=(8, 5))
-sns.countplot(data=df_pandas, x='risco_evasao', palette='viridis')
-plt.title('Distribuição de Risco de Evasão (Dados via HDFS)')
-plt.xlabel('Risco de Evasão')
-plt.ylabel('Quantidade')
-plt.xticks(rotation=45)
-plt.tight_layout()
-
-# Gráfico 8: Previsões de Risco de Evasão pelo Modelo
-plt.figure(8, figsize=(8,6))
-sns.countplot(x='risco_evasao', data=df_model, palette='viridis')
-plt.title('Previsões de Risco de Evasão pelo Modelo')
-plt.xlabel('Risco Predito')
-plt.ylabel('Quantidade')
-plt.xticks(rotation=45)
-plt.tight_layout()
-
-# Gráfico 9: 30 primeiros alunos e seu risco predito
-plt.figure(9, figsize=(12,6))
-sns.countplot(data=df_model.head(30), x='nome_aluno', hue='risco_predito', palette='Set2')
-plt.xticks(rotation=90)
-plt.title("Risco predito dos 30 primeiros alunos")
-plt.xlabel("Nome do Aluno")
-plt.ylabel("Contagem")
-plt.legend(title='Risco Predito')
-plt.tight_layout()
-
-# Gráfico 10: Top 5 cursos com mais risco de evasão
-# 1. Preparar os dados - contar alunos com risco de evasão por curso
-risco_por_curso = df[df['risco_evasao'] == 1]['curso'].value_counts().nlargest(5)
-
-# 2. Configurar o estilo do gráfico
-sns.set_style("whitegrid")
-paleta = sns.color_palette("Reds_r", len(risco_por_curso))
-
-# 3. Criar o gráfico de barras
-ax = sns.barplot(
-    x=risco_por_curso.values,
-    y=risco_por_curso.index,
-    palette=paleta,
-    edgecolor='black',
-    linewidth=1
-)
-
-# 4. Adicionar rótulos e títulos
-plt.figure(10, figsize=(8,6))
-plt.title('Top 5 Cursos com Mais Alunos em Risco de Evasão', fontsize=16, pad=20)
-plt.xlabel('Número de Alunos em Risco', fontsize=12)
-plt.ylabel('Curso', fontsize=12)
-
-# 5. Adicionar os valores nas barras
-for i, valor in enumerate(risco_por_curso.values):
-    ax.text(valor + 0.5, i, f'{valor}', va='center', fontsize=11, color='black')
-
-# 6. Adicionar linha de contexto (total de alunos por curso)
-total_por_curso = df['curso'].value_counts()[risco_por_curso.index]
-for i, (curso, total) in enumerate(total_por_curso.items()):
-    ax.text(risco_por_curso[curso] + 0.5, i-0.2,
-            f'({risco_por_curso[curso]/total:.1%} do total)',
-            va='center', fontsize=10, color='blue')
-
-# 7. Ajustar layout e mostrar
-plt.xlim(0, risco_por_curso.max() * 1.15)
-plt.tight_layout()
-
-# Gráfico 11: Top 5 cursos com mais risco de evasão
-plt.figure(11, figsize=(8,5))
+# Gráfico 5: Top 5 cursos com mais risco de evasão
+plt.figure(5, figsize=(8,5))
 bars = plt.bar(df_risco_counts['risco_predito'], df_risco_counts['percentual'], color='skyblue')
 
 for bar in bars:
@@ -859,10 +775,10 @@ plt.ylabel('Percentual (%)')
 plt.grid(axis='y', linestyle='--', alpha=0.7)
 plt.tight_layout()
 
-# Gráfico 12: Top 10 Variáveis para Predição do Risco de Evasão
+# Gráfico 6: Top 10 Variáveis para Predição do Risco de Evasão
 top_imp = df_imp.head(10)
 
-plt.figure(12, figsize=(8,6))
+plt.figure(6, figsize=(8,6))
 plt.barh(top_imp['Variável'], top_imp['Importância'], color='mediumseagreen')
 plt.xlabel('Importância')
 plt.title('Top 10 Variáveis para Predição do Risco de Evasão')
@@ -870,27 +786,17 @@ plt.gca().invert_yaxis()
 plt.grid(axis='x', linestyle='--', alpha=0.7)
 plt.tight_layout()
 
-# Gráfico 13: Alunos por Risco de Evasão (PCA + RandomForest)
+# Gráfico 7: Alunos por Risco de Evasão (PCA + RandomForest)
 import seaborn as sns
 
-plt.figure(13, figsize=(8,6))
+plt.figure(7, figsize=(8,6))
 sns.scatterplot(data=df_pca, x='PC1', y='PC2', hue='Risco_Predito', palette='Set2', s=100, edgecolor='black')
 plt.title('Alunos por Risco de Evasão (PCA + RandomForest)')
 plt.grid(True, linestyle='--', alpha=0.6)
 plt.tight_layout()
 
-# Gráfico 14: Distribuição dos Motivos de Evasão por Categoria de Risco
-plt.figure(14, figsize=(10,6))
-sns.barplot(data=df_motivos, x='motivo_evasao', y='quantidade', hue='risco_predito', palette='Set2')
-plt.title('Distribuição dos Motivos de Evasão por Categoria de Risco')
-plt.xlabel('Motivo de Evasão')
-plt.ylabel('Número de Alunos')
-plt.grid(axis='y', linestyle='--', alpha=0.5)
-plt.legend(title='Risco Predito')
-plt.tight_layout()
-
-# Gráfico 15: Quantidade de Alunos Evadidos por Classe Econômica
-plt.figure(15, figsize=(7,5))
+# Gráfico 8: Quantidade de Alunos Evadidos por Classe Econômica
+plt.figure(8, figsize=(7,5))
 colors = ['red', 'orange', 'green']
 bars = plt.bar(df_contagem['classe_economica'], df_contagem['quantidade_evadidos'], color=colors)
 
@@ -904,7 +810,123 @@ plt.ylabel('Quantidade')
 plt.grid(axis='y', linestyle='--', alpha=0.5)
 plt.tight_layout()
 
+# Gráfico 9: Top 5 Estados Civis com Mais Evasão
+# Garantir que não há nulos
+df_estado = df.dropna(subset=['estado_civil', 'risco_evasao'])
+
+# Contar evasões por estado civil
+evasao_estado = df_estado[df_estado['risco_evasao'] == 1]['estado_civil'].value_counts().nlargest(6)
+
+plt.figure(9, figsize=(8,5))
+bars = plt.bar(evasao_estado.index, evasao_estado.values, color='cornflowerblue', edgecolor='black')
+
+# Adicionar rótulos nas barras
+for bar in bars:
+    height = bar.get_height()
+    plt.text(bar.get_x() + bar.get_width()/2, height + 0.5, str(int(height)), ha='center')
+
+plt.title('Top 5 Estados Civis com Mais Alunos Evadidos')
+plt.xlabel('Estado Civil')
+plt.ylabel('Quantidade de Evasões')
+plt.xticks(rotation=45)
+plt.grid(axis='y', linestyle='--', alpha=0.5)
+plt.tight_layout()
+
+# Gráfico 10: Evasão por Bimestre
+# Garantir dados válidos
+df_bimestre = df.dropna(subset=['bimestre', 'risco_evasao'])
+
+# Contar evasões por bimestre
+evasao_bimestre = df_bimestre[df_bimestre['risco_evasao'] == 1]['bimestre'].value_counts().sort_index()
+
+plt.figure(10, figsize=(8,5))
+bars = plt.bar(evasao_bimestre.index.astype(str), evasao_bimestre.values, color='tomato', edgecolor='black')
+
+# Rótulos nas barras
+for bar in bars:
+    height = bar.get_height()
+    plt.text(bar.get_x() + bar.get_width()/2, height + 0.5, str(int(height)), ha='center')
+
+plt.title('Quantidade de Alunos Evadidos por Bimestre')
+plt.xlabel('Bimestre')
+plt.ylabel('Quantidade de Evasões')
+plt.grid(axis='y', linestyle='--', alpha=0.5)
+plt.tight_layout()
+
+# Gráfico 11: Evasão por Semestre
+# Garantir dados válidos
+df_semestre = df.dropna(subset=['semestre', 'risco_evasao'])
+
+# Contar evasões por semestre
+evasao_semestre = df_semestre[df_semestre['risco_evasao'] == 1]['semestre'].value_counts().sort_index()
+
+plt.figure(11, figsize=(9,5))
+bars = plt.bar(evasao_semestre.index.astype(str), evasao_semestre.values, color='darkorange', edgecolor='black')
+
+# Adicionar rótulos nas barras
+for bar in bars:
+    height = bar.get_height()
+    plt.text(bar.get_x() + bar.get_width()/2, height + 0.5, str(int(height)), ha='center')
+
+plt.title('Quantidade de Alunos Evadidos por Semestre')
+plt.xlabel('Semestre')
+plt.ylabel('Quantidade de Evasões')
+plt.grid(axis='y', linestyle='--', alpha=0.5)
+plt.xticks(rotation=45)
+plt.tight_layout()
+
+# Gráfico 12: Quantidade de Alunos Evadidos por Número de Faltas
+plt.figure(12, figsize=(8,5))   
+plt.bar(df_faltas_count['faltas_1'], df_faltas_count['quantidade_evadidos'], color='purple')
+plt.title('Quantidade de Alunos Evadidos por Número de Faltas')
+plt.xlabel('Número de Faltas')
+plt.ylabel('Quantidade de Alunos Evadidos')
+plt.xticks(rotation=45)
+plt.grid(axis='y', linestyle='--', alpha=0.5)
+plt.tight_layout()
+
+# Gráfico 13: Distribuição de Evasão por Semestre
+plt.figure(13, figsize=(10,6))
+plt.bar(dados_plot['semestre'], dados_plot['total_evasoes'], color='blue', label='Total de Evasões')
+plt.bar(dados_plot['semestre'], dados_plot['percentual_evasao'], color='orange', label='Percentual de Evasão (%)')
+plt.title('Distribuição de Evasão por Semestre')
+plt.xlabel('Semestre')
+plt.ylabel('Contagem/Percentual')
+plt.legend()
+plt.grid(axis='y', linestyle='--', alpha=0.5)
+plt.tight_layout()
+
+# Certifique-se que df_motivos foi criado antes
+if 'df_motivos' not in locals():
+    df_model['motivo_evasao'] = df_model.apply(definir_motivo, axis=1)
+    df_motivos = df_model.groupby(['risco_predito', 'motivo_evasao']).size().reset_index(name='quantidade')
+
+# Gráfico 14: Top 5 cursos com mais evasão
+# Garantir que a coluna 'risco_evasao' e 'curso' estão presentes e válidas
+df_evasao_curso = df.copy()
+df_evasao_curso = df_evasao_curso.dropna(subset=['risco_evasao', 'curso'])
+
+# Filtrar apenas os alunos que evadiram (risco_evasao == 1)
+df_evadidos = df_evasao_curso[df_evasao_curso['risco_evasao'] == 1]
+
+# Contar evasões por curso e selecionar os 5 mais
+top_cursos = df_evadidos['curso'].value_counts().nlargest(5)
+
+# Plotar o gráfico
+plt.figure(14, figsize=(8, 5))
+bars = plt.bar(top_cursos.index, top_cursos.values, color='steelblue', edgecolor='black')
+
+# Adicionar rótulos de valor nas barras
+for bar in bars:
+    height = bar.get_height()
+    plt.text(bar.get_x() + bar.get_width()/2, height + 0.5, str(int(height)), ha='center')
+
+plt.title('Top 5 Cursos com Mais Alunos Evadidos')
+plt.xlabel('Curso')
+plt.ylabel('Quantidade de Evasões')
+plt.xticks(rotation=45)
+plt.grid(axis='y', linestyle='--', alpha=0.6)
+plt.tight_layout()
+
 plt.show()
-
-
 #FIM DE CODIGO 
