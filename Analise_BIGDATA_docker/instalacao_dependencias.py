@@ -6,7 +6,8 @@ packages = [
     # Manipulação de Dados
     "pandas",
     "numpy",
-
+    "scipy",
+    "dask[dataframe]",
     # Visualização de Dados
     "matplotlib",
     "seaborn",
