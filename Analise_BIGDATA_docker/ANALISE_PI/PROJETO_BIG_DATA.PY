@@ -362,22 +362,6 @@ data = predictions.select("risco_evasao_idx", "prediction").collect()
 preds_pd = pd.DataFrame(data, columns=["risco_evasao_idx", "prediction"])
 
 # ===============================
-# 📄 Informações adicionais
-# ===============================
-# print("\nInformações do DataFrame Spark:")
-# print("Colunas disponíveis:", df_spark.columns)
-# print("Contagem de linhas:", df_spark.count())
-
-# print("Contagem de valores nulos por coluna:")
-# df_spark.select([col(c).isNull().cast("int").alias(c) for c in df_spark.columns]) \
-#     .agg(*[sum(col(c)).alias(c) for c in df_spark.columns]).show()
-
-# print("Distribuição de classes (risco_evasao):")
-# df_spark.groupBy("risco_evasao").count().show()
-
-# print("Distribuição de classes (risco_evasao_idx):")
-# df_spark.groupBy("risco_evasao_idx").count().show()
-# ===============================
 # 📈 Visualizações com Pandas, Seaborn e Matplotlib
 # ===============================
 # Coleta os dados manualmente
@@ -799,11 +783,10 @@ for i, label in enumerate(class_labels):
     top10_words = feature_names[top10_idx]
     top10_weights = clf_nb.coef_[i][top10_idx]
 
-    # Correção: Ordenar de forma decrescente
     df_top_words = pd.DataFrame({
         'Palavra': top10_words,
         'Peso': top10_weights
-    }).sort_values(by='Peso', ascending=False)  # ⬅️ Aqui a mudança
+    }).sort_values(by='Peso', ascending=False)  # Alterado para False
 
     fig = px.bar(
         df_top_words,
